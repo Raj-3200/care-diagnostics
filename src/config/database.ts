@@ -1,0 +1,30 @@
+import { PrismaClient } from '@prisma/client';
+
+const prismaClientSingleton = () => {
+  return new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  });
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var prisma: ReturnType<typeof prismaClientSingleton> | undefined;
+}
+
+const prisma = globalThis.prisma ?? prismaClientSingleton();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.prisma = prisma;
+}
+
+// Graceful disconnect
+const disconnect = async () => {
+  await prisma.$disconnect();
+  console.log('🔌 Database connection closed');
+};
+
+process.on('beforeExit', () => {
+  void disconnect();
+});
+
+export { prisma, disconnect };
