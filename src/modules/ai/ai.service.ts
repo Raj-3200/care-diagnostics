@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { env } from '../../config/env.js';
 import { prisma } from '../../config/database.js';
-import type { Role } from '@prisma/client';
+import type { Role, Prisma } from '@prisma/client';
 import type {
   AiIntent,
   AiConversationState,
@@ -29,12 +29,15 @@ interface Conversation {
 const conversations = new Map<string, Conversation>();
 
 // Cleanup conversations older than 30 minutes
-setInterval(() => {
-  const cutoff = Date.now() - 30 * 60 * 1000;
-  for (const [id, conv] of conversations) {
-    if (conv.updatedAt.getTime() < cutoff) conversations.delete(id);
-  }
-}, 5 * 60 * 1000);
+setInterval(
+  () => {
+    const cutoff = Date.now() - 30 * 60 * 1000;
+    for (const [id, conv] of conversations) {
+      if (conv.updatedAt.getTime() < cutoff) conversations.delete(id);
+    }
+  },
+  5 * 60 * 1000,
+);
 
 // ─── Anthropic Client ──────────────────────────────────────────────────────────
 let anthropic: Anthropic | null = null;
@@ -113,34 +116,38 @@ function getTaskSteps(intent: AiIntent): TaskStepDefinition[] {
         {
           field: 'firstName',
           label: 'First Name',
-          question: 'Please enter the patient\'s **first name**.',
+          question: "Please enter the patient's **first name**.",
           hint: 'Example: Rahul',
           validate: (v) => {
             if (v.length < 2) return 'First name must be at least 2 characters.';
-            if (!/^[a-zA-Z\s'-]+$/.test(v)) return 'First name may only contain letters, spaces, hyphens, and apostrophes.';
+            if (!/^[a-zA-Z\s'-]+$/.test(v))
+              return 'First name may only contain letters, spaces, hyphens, and apostrophes.';
             return null;
           },
         },
         {
           field: 'lastName',
           label: 'Last Name',
-          question: 'Please enter the patient\'s **last name**.',
+          question: "Please enter the patient's **last name**.",
           hint: 'Example: Sharma',
           validate: (v) => {
             if (v.length < 2) return 'Last name must be at least 2 characters.';
-            if (!/^[a-zA-Z\s'-]+$/.test(v)) return 'Last name may only contain letters, spaces, hyphens, and apostrophes.';
+            if (!/^[a-zA-Z\s'-]+$/.test(v))
+              return 'Last name may only contain letters, spaces, hyphens, and apostrophes.';
             return null;
           },
         },
         {
           field: 'dateOfBirth',
           label: 'Date of Birth',
-          question: 'Please enter the patient\'s **date of birth**.',
+          question: "Please enter the patient's **date of birth**.",
           hint: 'Format: YYYY-MM-DD (e.g., 1990-05-15)',
           validate: (v) => {
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return 'Please use the format YYYY-MM-DD (e.g., 1990-05-15).';
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(v))
+              return 'Please use the format YYYY-MM-DD (e.g., 1990-05-15).';
             const date = new Date(v);
-            if (isNaN(date.getTime())) return 'That is not a valid date. Please check and try again.';
+            if (isNaN(date.getTime()))
+              return 'That is not a valid date. Please check and try again.';
             if (date > new Date()) return 'Date of birth cannot be in the future.';
             const age = (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
             if (age > 150) return 'Please enter a realistic date of birth.';
@@ -150,7 +157,7 @@ function getTaskSteps(intent: AiIntent): TaskStepDefinition[] {
         {
           field: 'gender',
           label: 'Gender',
-          question: 'Please specify the patient\'s **gender**.',
+          question: "Please specify the patient's **gender**.",
           hint: 'Options: Male, Female, or Other',
           validate: (v) => {
             if (!['male', 'female', 'other'].includes(v.toLowerCase().trim()))
@@ -161,28 +168,30 @@ function getTaskSteps(intent: AiIntent): TaskStepDefinition[] {
         {
           field: 'phone',
           label: 'Phone',
-          question: 'Please enter the patient\'s **phone number**.',
+          question: "Please enter the patient's **phone number**.",
           hint: 'Must be a valid 10-digit number (e.g., 9876543210)',
           validate: (v) => {
-            const digits = v.replace(/[\s\-\+\(\)]/g, '');
-            if (!/^\d{10,15}$/.test(digits)) return 'Phone number must contain 10–15 digits. Remove any letters or special characters.';
+            const digits = v.replace(/[\s\-+()]/g, '');
+            if (!/^\d{10,15}$/.test(digits))
+              return 'Phone number must contain 10–15 digits. Remove any letters or special characters.';
             return null;
           },
         },
         {
           field: 'address',
           label: 'Address',
-          question: 'Please enter the patient\'s **street address**.',
+          question: "Please enter the patient's **street address**.",
           hint: 'Example: 42, MG Road, Near City Hospital',
           validate: (v) => {
-            if (v.length < 5) return 'Address must be at least 5 characters. Please provide the full street address.';
+            if (v.length < 5)
+              return 'Address must be at least 5 characters. Please provide the full street address.';
             return null;
           },
         },
         {
           field: 'city',
           label: 'City',
-          question: 'Please enter the patient\'s **city**.',
+          question: "Please enter the patient's **city**.",
           hint: 'Example: Mumbai',
           validate: (v) => {
             if (v.length < 2) return 'City name must be at least 2 characters.';
@@ -192,7 +201,7 @@ function getTaskSteps(intent: AiIntent): TaskStepDefinition[] {
         {
           field: 'state',
           label: 'State',
-          question: 'Please enter the patient\'s **state**.',
+          question: "Please enter the patient's **state**.",
           hint: 'Example: Maharashtra',
           validate: (v) => {
             if (v.length < 2) return 'State name must be at least 2 characters.';
@@ -202,7 +211,7 @@ function getTaskSteps(intent: AiIntent): TaskStepDefinition[] {
         {
           field: 'pincode',
           label: 'Pincode',
-          question: 'Please enter the patient\'s **pincode**.',
+          question: "Please enter the patient's **pincode**.",
           hint: 'Must be a 6-digit number (e.g., 400001)',
           validate: (v) => {
             if (!/^\d{6}$/.test(v.trim())) return 'Pincode must be exactly 6 digits.';
@@ -212,11 +221,12 @@ function getTaskSteps(intent: AiIntent): TaskStepDefinition[] {
         {
           field: 'email',
           label: 'Email (Optional)',
-          question: 'Please enter the patient\'s **email address**.',
+          question: "Please enter the patient's **email address**.",
           hint: 'Type "skip" if not available',
           validate: (v) => {
             if (v.toLowerCase().trim() === 'skip' || v.trim() === '') return null;
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Please enter a valid email address, or type "skip" to proceed without one.';
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()))
+              return 'Please enter a valid email address, or type "skip" to proceed without one.';
             return null;
           },
         },
@@ -227,10 +237,11 @@ function getTaskSteps(intent: AiIntent): TaskStepDefinition[] {
         {
           field: 'patientIdentifier',
           label: 'Patient',
-          question: 'Please provide the **patient MRN** or the **patient\'s full name** to look up.',
+          question: "Please provide the **patient MRN** or the **patient's full name** to look up.",
           hint: 'Example: CD-2026-00001 or "Rahul Sharma"',
           validate: (v) => {
-            if (v.length < 2) return 'Please enter a valid MRN or patient name (at least 2 characters).';
+            if (v.length < 2)
+              return 'Please enter a valid MRN or patient name (at least 2 characters).';
             return null;
           },
         },
@@ -258,7 +269,8 @@ function getTaskSteps(intent: AiIntent): TaskStepDefinition[] {
         {
           field: 'testSearch',
           label: 'Test Search',
-          question: 'Enter the **test name**, **test code**, or **category** to search for available tests.',
+          question:
+            'Enter the **test name**, **test code**, or **category** to search for available tests.',
           hint: 'Example: "CBC" or "Hematology" or "Blood Glucose"',
           validate: (v) => {
             if (v.length < 2) return 'Search term must be at least 2 characters.';
@@ -341,8 +353,8 @@ async function executeAction(
     switch (intent) {
       case 'CREATE_PATIENT': {
         const gender = (payload.gender as string).toUpperCase();
-        const emailVal = (payload.email as string);
-        const email = (emailVal && emailVal.toLowerCase() !== 'skip') ? emailVal.trim() : null;
+        const emailVal = payload.email as string;
+        const email = emailVal && emailVal.toLowerCase() !== 'skip' ? emailVal.trim() : null;
 
         const patient = await prisma.patient.create({
           data: {
@@ -351,7 +363,7 @@ async function executeAction(
             lastName: (payload.lastName as string).trim(),
             dateOfBirth: new Date(payload.dateOfBirth as string),
             gender: gender as 'MALE' | 'FEMALE' | 'OTHER',
-            phone: (payload.phone as string).replace(/[\s\-\+\(\)]/g, ''),
+            phone: (payload.phone as string).replace(/[\s\-+()]/g, ''),
             email,
             address: (payload.address as string).trim(),
             city: (payload.city as string).trim(),
@@ -370,14 +382,16 @@ async function executeAction(
             '',
             `• **MRN:** ${patient.mrn}`,
             `• **Name:** ${patient.firstName} ${patient.lastName}`,
-            `• **Date of Birth:** ${payload.dateOfBirth}`,
+            `• **Date of Birth:** ${String(payload.dateOfBirth)}`,
             `• **Gender:** ${patient.gender}`,
             `• **Phone:** ${patient.phone}`,
             `• **Address:** ${patient.address}, ${patient.city}, ${patient.state} — ${patient.pincode}`,
             email ? `• **Email:** ${email}` : '',
             '',
             'The patient is now available in the system.',
-          ].filter(Boolean).join('\n'),
+          ]
+            .filter(Boolean)
+            .join('\n'),
           data: patient,
         };
       }
@@ -397,12 +411,15 @@ async function executeAction(
         });
 
         if (!patient) {
-          return { success: false, message: `No patient found matching **"${identifier}"**. Please verify the MRN or name and try again.` };
+          return {
+            success: false,
+            message: `No patient found matching **"${identifier}"**. Please verify the MRN or name and try again.`,
+          };
         }
 
         const visitNumber = `V-${new Date().getFullYear()}-${String(await getNextVisitSequence()).padStart(5, '0')}`;
-        const notesVal = (payload.notes as string);
-        const notes = (notesVal && notesVal.toLowerCase() !== 'skip') ? notesVal.trim() : null;
+        const notesVal = payload.notes as string;
+        const notes = notesVal && notesVal.toLowerCase() !== 'skip' ? notesVal.trim() : null;
 
         const visit = await prisma.visit.create({
           data: {
@@ -428,7 +445,9 @@ async function executeAction(
             notes ? `• **Notes:** ${notes}` : '',
             '',
             'You may now add test orders to this visit.',
-          ].filter(Boolean).join('\n'),
+          ]
+            .filter(Boolean)
+            .join('\n'),
           data: visit,
         };
       }
@@ -450,12 +469,18 @@ async function executeAction(
         });
 
         if (patients.length === 0) {
-          return { success: true, message: `No patients found matching **"${term}"**. Please verify the search criteria.` };
+          return {
+            success: true,
+            message: `No patients found matching **"${term}"**. Please verify the search criteria.`,
+          };
         }
 
-        const list = patients.map((p, i) =>
-          `${i + 1}. **${p.firstName} ${p.lastName}** — MRN: ${p.mrn} | Phone: ${p.phone}${p.city ? ` | ${p.city}` : ''}`
-        ).join('\n');
+        const list = patients
+          .map(
+            (p, i) =>
+              `${i + 1}. **${p.firstName} ${p.lastName}** — MRN: ${p.mrn} | Phone: ${p.phone}${p.city ? ` | ${p.city}` : ''}`,
+          )
+          .join('\n');
 
         return {
           success: true,
@@ -480,12 +505,18 @@ async function executeAction(
         });
 
         if (visits.length === 0) {
-          return { success: true, message: `No visits found matching **"${term}"**. Please verify the search criteria.` };
+          return {
+            success: true,
+            message: `No visits found matching **"${term}"**. Please verify the search criteria.`,
+          };
         }
 
-        const list = visits.map((v, i) =>
-          `${i + 1}. **${v.visitNumber}** — Patient: ${v.patient.firstName} ${v.patient.lastName} (${v.patient.mrn}) | Status: ${v.status}`
-        ).join('\n');
+        const list = visits
+          .map(
+            (v, i) =>
+              `${i + 1}. **${v.visitNumber}** — Patient: ${v.patient.firstName} ${v.patient.lastName} (${v.patient.mrn}) | Status: ${v.status}`,
+          )
+          .join('\n');
 
         return {
           success: true,
@@ -515,7 +546,14 @@ async function executeAction(
         if (!report) {
           // Check if the identifier matches a patient or visit that simply has no reports yet
           const matchedPatient = await prisma.patient.findFirst({
-            where: { deletedAt: null, OR: [{ mrn: { contains: id, mode: 'insensitive' } }, { firstName: { contains: id, mode: 'insensitive' } }, { lastName: { contains: id, mode: 'insensitive' } }] },
+            where: {
+              deletedAt: null,
+              OR: [
+                { mrn: { contains: id, mode: 'insensitive' } },
+                { firstName: { contains: id, mode: 'insensitive' } },
+                { lastName: { contains: id, mode: 'insensitive' } },
+              ],
+            },
             select: { mrn: true, firstName: true, lastName: true },
           });
           const matchedVisit = await prisma.visit.findFirst({
@@ -546,7 +584,10 @@ async function executeAction(
             };
           }
 
-          return { success: true, message: `No patient, visit, or report found matching **"${id}"**. Please verify the identifier and try again.` };
+          return {
+            success: true,
+            message: `No patient, visit, or report found matching **"${id}"**. Please verify the identifier and try again.`,
+          };
         }
 
         return {
@@ -558,8 +599,12 @@ async function executeAction(
             `• **Visit:** ${report.visit.visitNumber}`,
             `• **Patient:** ${report.visit.patient.firstName} ${report.visit.patient.lastName} (${report.visit.patient.mrn})`,
             `• **Status:** ${report.status}`,
-            report.approvedBy ? `• **Approved by:** Dr. ${report.approvedBy.firstName} ${report.approvedBy.lastName}` : '',
-          ].filter(Boolean).join('\n'),
+            report.approvedBy
+              ? `• **Approved by:** Dr. ${report.approvedBy.firstName} ${report.approvedBy.lastName}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join('\n'),
           data: report,
         };
       }
@@ -571,20 +616,23 @@ async function executeAction(
         const targetVisit = await prisma.visit.findFirst({
           where: {
             deletedAt: null,
-            OR: [
-              { visitNumber: { equals: visitIdent, mode: 'insensitive' } },
-              { id: visitIdent },
-            ],
+            OR: [{ visitNumber: { equals: visitIdent, mode: 'insensitive' } }, { id: visitIdent }],
           },
           include: { patient: true, testOrders: { include: { test: true } } },
         });
 
         if (!targetVisit) {
-          return { success: false, message: `No visit found matching **"${visitIdent}"**. Please verify the visit number.` };
+          return {
+            success: false,
+            message: `No visit found matching **"${visitIdent}"**. Please verify the visit number.`,
+          };
         }
 
         if (targetVisit.status === 'CANCELLED' || targetVisit.status === 'COMPLETED') {
-          return { success: false, message: `Visit **${targetVisit.visitNumber}** has status **${targetVisit.status}** and cannot accept new test orders.` };
+          return {
+            success: false,
+            message: `Visit **${targetVisit.visitNumber}** has status **${targetVisit.status}** and cannot accept new test orders.`,
+          };
         }
 
         const matchingTests = await prisma.test.findMany({
@@ -601,14 +649,20 @@ async function executeAction(
         });
 
         if (matchingTests.length === 0) {
-          return { success: false, message: `No active tests found matching **"${testSearch}"**. Please try a different name, code, or category.` };
+          return {
+            success: false,
+            message: `No active tests found matching **"${testSearch}"**. Please try a different name, code, or category.`,
+          };
         }
 
-        const existingTestIds = new Set(targetVisit.testOrders.map(to => to.testId));
-        const availableTests = matchingTests.filter(t => !existingTestIds.has(t.id));
+        const existingTestIds = new Set(targetVisit.testOrders.map((to) => to.testId));
+        const availableTests = matchingTests.filter((t) => !existingTestIds.has(t.id));
 
         if (availableTests.length === 0) {
-          return { success: false, message: `All tests matching **"${testSearch}"** are already ordered for visit **${targetVisit.visitNumber}**.` };
+          return {
+            success: false,
+            message: `All tests matching **"${testSearch}"** are already ordered for visit **${targetVisit.visitNumber}**.`,
+          };
         }
 
         const created = [];
@@ -620,11 +674,16 @@ async function executeAction(
           created.push(testOrder);
         }
 
-        await logAudit(userId, 'TESTS_ADDED', 'Visit', targetVisit.id, null, { testOrders: created });
+        await logAudit(userId, 'TESTS_ADDED', 'Visit', targetVisit.id, null, {
+          testOrders: created,
+        });
 
-        const testList = created.map((to, i) =>
-          `${i + 1}. **${to.test.name}** (${to.test.code}) — ₹${to.test.price}`
-        ).join('\n');
+        const testList = created
+          .map(
+            (to, i) =>
+              `${i + 1}. **${to.test.name}** (${to.test.code}) — ₹${to.test.price.toString()}`,
+          )
+          .join('\n');
 
         return {
           success: true,
@@ -644,10 +703,7 @@ async function executeAction(
         const visit = await prisma.visit.findFirst({
           where: {
             deletedAt: null,
-            OR: [
-              { visitNumber: { equals: visitIdent, mode: 'insensitive' } },
-              { id: visitIdent },
-            ],
+            OR: [{ visitNumber: { equals: visitIdent, mode: 'insensitive' } }, { id: visitIdent }],
           },
           include: {
             patient: true,
@@ -657,7 +713,10 @@ async function executeAction(
         });
 
         if (!visit) {
-          return { success: false, message: `No visit found matching **"${visitIdent}"**. Please verify the visit number.` };
+          return {
+            success: false,
+            message: `No visit found matching **"${visitIdent}"**. Please verify the visit number.`,
+          };
         }
 
         if (visit.invoice) {
@@ -667,7 +726,7 @@ async function executeAction(
               '**An invoice already exists for this visit:**',
               '',
               `• **Invoice #:** ${visit.invoice.invoiceNumber}`,
-              `• **Net Amount:** ₹${visit.invoice.netAmount}`,
+              `• **Net Amount:** ₹${visit.invoice.netAmount.toString()}`,
               `• **Status:** ${visit.invoice.status}`,
             ].join('\n'),
             data: visit.invoice,
@@ -675,7 +734,10 @@ async function executeAction(
         }
 
         if (visit.testOrders.length === 0) {
-          return { success: false, message: `Visit **${visit.visitNumber}** has no test orders. Please add tests before generating an invoice.` };
+          return {
+            success: false,
+            message: `Visit **${visit.visitNumber}** has no test orders. Please add tests before generating an invoice.`,
+          };
         }
 
         const totalAmount = visit.testOrders.reduce((sum, to) => sum + Number(to.test.price), 0);
@@ -718,7 +780,10 @@ async function executeAction(
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'An unexpected error occurred';
     console.error(`[AI] Action execution error (${intent}):`, error);
-    return { success: false, message: `Action failed: ${message}. Please try again or contact support.` };
+    return {
+      success: false,
+      message: `Action failed: ${message}. Please try again or contact support.`,
+    };
   }
 }
 
@@ -755,8 +820,12 @@ async function logAudit(
       action,
       entity,
       entityId,
-      oldValue: oldValue ? JSON.parse(JSON.stringify(oldValue)) : undefined,
-      newValue: newValue ? JSON.parse(JSON.stringify(newValue)) : undefined,
+      oldValue: oldValue
+        ? (JSON.parse(JSON.stringify(oldValue)) as Prisma.InputJsonValue)
+        : undefined,
+      newValue: newValue
+        ? (JSON.parse(JSON.stringify(newValue)) as Prisma.InputJsonValue)
+        : undefined,
     },
   });
 }
@@ -766,30 +835,51 @@ function detectIntentFast(message: string): AiIntent | null {
   const lower = message.toLowerCase().trim();
 
   // Patient creation — "register a patient", "I want to create a patient", "can you add a new patient?", etc.
-  if (/\bpatient\b/.test(lower) && /\b(create|register|new|add|enroll|admit|entry|onboard)\b/.test(lower)) return 'CREATE_PATIENT';
+  if (
+    /\bpatient\b/.test(lower) &&
+    /\b(create|register|new|add|enroll|admit|entry|onboard)\b/.test(lower)
+  )
+    return 'CREATE_PATIENT';
   if (/\bpatient\s*(registration|creation|onboarding|entry)\b/.test(lower)) return 'CREATE_PATIENT';
 
   // Visit creation
-  if (/\bvisit\b/.test(lower) && /\b(create|open|start|new|begin|make|initiate)\b/.test(lower)) return 'CREATE_VISIT';
+  if (/\bvisit\b/.test(lower) && /\b(create|open|start|new|begin|make|initiate)\b/.test(lower))
+    return 'CREATE_VISIT';
 
   // Add tests
-  if (/\btest/.test(lower) && /\b(add|book|order|request|new|place)\b/.test(lower)) return 'ADD_TESTS';
+  if (/\btest/.test(lower) && /\b(add|book|order|request|new|place)\b/.test(lower))
+    return 'ADD_TESTS';
 
   // Generate invoice
-  if (/\binvoice\b/.test(lower) && /\b(generate|create|make|prepare|new|raise)\b/.test(lower)) return 'GENERATE_INVOICE';
-  if (/\bbill(ing)?\b/.test(lower) && /\b(generate|create|make|prepare|new)\b/.test(lower)) return 'GENERATE_INVOICE';
+  if (/\binvoice\b/.test(lower) && /\b(generate|create|make|prepare|new|raise)\b/.test(lower))
+    return 'GENERATE_INVOICE';
+  if (/\bbill(ing)?\b/.test(lower) && /\b(generate|create|make|prepare|new)\b/.test(lower))
+    return 'GENERATE_INVOICE';
 
   // Search patient
-  if (/\bpatient\b/.test(lower) && /\b(find|search|look\s?up|locate|fetch|get|list|check|view)\b/.test(lower)) return 'SEARCH_PATIENT';
+  if (
+    /\bpatient\b/.test(lower) &&
+    /\b(find|search|look\s?up|locate|fetch|get|list|check|view)\b/.test(lower)
+  )
+    return 'SEARCH_PATIENT';
 
   // Search visit
-  if (/\bvisit\b/.test(lower) && /\b(find|search|look\s?up|locate|fetch|get|list|check|view)\b/.test(lower)) return 'SEARCH_VISIT';
+  if (
+    /\bvisit\b/.test(lower) &&
+    /\b(find|search|look\s?up|locate|fetch|get|list|check|view)\b/.test(lower)
+  )
+    return 'SEARCH_VISIT';
 
   // Report status
-  if (/\breport/.test(lower) && /\b(check|track|status|find|where|view|get|look)\b/.test(lower)) return 'CHECK_REPORT_STATUS';
+  if (/\breport/.test(lower) && /\b(check|track|status|find|where|view|get|look)\b/.test(lower))
+    return 'CHECK_REPORT_STATUS';
 
   // Navigation
-  if (/\b(go\s?to|navigate|take\s+me|open|show\s+me|show)\b/.test(lower) && /\b(dashboard|patient|visit|test|sample|result|report|invoice|billing|user)\b/.test(lower)) return 'NAVIGATE';
+  if (
+    /\b(go\s?to|navigate|take\s+me|open|show\s+me|show)\b/.test(lower) &&
+    /\b(dashboard|patient|visit|test|sample|result|report|invoice|billing|user)\b/.test(lower)
+  )
+    return 'NAVIGATE';
   if (/^(go\s?to|navigate\s+to|take\s+me\s+to|open)\s+/i.test(lower)) return 'NAVIGATE';
 
   return null;
@@ -799,17 +889,17 @@ function detectIntentFast(message: string): AiIntent | null {
 function getNavigationResponse(message: string): string | null {
   const lower = message.toLowerCase();
   const routes: Record<string, { label: string; route: string }> = {
-    'dashboard': { label: 'Dashboard', route: '/dashboard' },
-    'patient': { label: 'Patients', route: '/dashboard/patients' },
-    'visit': { label: 'Visits', route: '/dashboard/visits' },
+    dashboard: { label: 'Dashboard', route: '/dashboard' },
+    patient: { label: 'Patients', route: '/dashboard/patients' },
+    visit: { label: 'Visits', route: '/dashboard/visits' },
     'test catalog': { label: 'Test Catalog', route: '/dashboard/tests' },
     'test order': { label: 'Test Orders', route: '/dashboard/test-orders' },
-    'sample': { label: 'Samples', route: '/dashboard/samples' },
-    'result': { label: 'Results', route: '/dashboard/results' },
-    'report': { label: 'Reports', route: '/dashboard/reports' },
-    'invoice': { label: 'Invoices', route: '/dashboard/invoices' },
-    'billing': { label: 'Invoices', route: '/dashboard/invoices' },
-    'user': { label: 'Users', route: '/dashboard/users' },
+    sample: { label: 'Samples', route: '/dashboard/samples' },
+    result: { label: 'Results', route: '/dashboard/results' },
+    report: { label: 'Reports', route: '/dashboard/reports' },
+    invoice: { label: 'Invoices', route: '/dashboard/invoices' },
+    billing: { label: 'Invoices', route: '/dashboard/invoices' },
+    user: { label: 'Users', route: '/dashboard/users' },
   };
 
   for (const [keyword, { label, route }] of Object.entries(routes)) {
@@ -842,7 +932,10 @@ async function askClaude(
     });
 
     const textBlock = response.content.find((b) => b.type === 'text');
-    return textBlock?.text || 'I was unable to process that request. Please try again or rephrase your question.';
+    return (
+      textBlock?.text ||
+      'I was unable to process that request. Please try again or rephrase your question.'
+    );
   } catch (error) {
     console.error('[AI] Claude API error:', error);
     return getBuiltInResponse(history[history.length - 1]?.content || '');
@@ -872,7 +965,12 @@ function getBuiltInResponse(message: string): string {
     ].join('\n');
   }
 
-  if (lower.includes('workflow') || lower.includes('process') || lower.includes('how does it work') || lower.includes('how does the system work')) {
+  if (
+    lower.includes('workflow') ||
+    lower.includes('process') ||
+    lower.includes('how does it work') ||
+    lower.includes('how does the system work')
+  ) {
     return [
       '**Care Diagnostics LIMS — Complete Workflow**',
       '',
@@ -1028,7 +1126,12 @@ function getBuiltInResponse(message: string): string {
     ].join('\n');
   }
 
-  if (lower.includes('navigate') || lower.includes('where') || lower.includes('go to') || lower.includes('section')) {
+  if (
+    lower.includes('navigate') ||
+    lower.includes('where') ||
+    lower.includes('go to') ||
+    lower.includes('section')
+  ) {
     return [
       '**System Navigation**',
       '',
@@ -1072,15 +1175,15 @@ function buildConfirmationSummary(intent: AiIntent, payload: Record<string, unkn
   switch (intent) {
     case 'CREATE_PATIENT': {
       const emailVal = payload.email as string;
-      const email = (emailVal && emailVal.toLowerCase() !== 'skip') ? emailVal : null;
+      const email = emailVal && emailVal.toLowerCase() !== 'skip' ? emailVal : null;
       return [
         '**Please review the patient details below:**',
         '',
-        `• **Name:** ${payload.firstName} ${payload.lastName}`,
-        `• **Date of Birth:** ${payload.dateOfBirth}`,
+        `• **Name:** ${String(payload.firstName)} ${String(payload.lastName)}`,
+        `• **Date of Birth:** ${String(payload.dateOfBirth)}`,
         `• **Gender:** ${(payload.gender as string).charAt(0).toUpperCase() + (payload.gender as string).slice(1).toLowerCase()}`,
-        `• **Phone:** ${payload.phone}`,
-        `• **Address:** ${payload.address}, ${payload.city}, ${payload.state} — ${payload.pincode}`,
+        `• **Phone:** ${String(payload.phone)}`,
+        `• **Address:** ${String(payload.address)}, ${String(payload.city)}, ${String(payload.state)} — ${String(payload.pincode)}`,
         email ? `• **Email:** ${email}` : '• **Email:** Not provided',
         '',
         '⚠️ **This action will create a permanent patient record in the system.**',
@@ -1093,8 +1196,8 @@ function buildConfirmationSummary(intent: AiIntent, payload: Record<string, unkn
       return [
         '**Please review the visit details:**',
         '',
-        `• **Patient:** ${payload.patientIdentifier}`,
-        `• **Notes:** ${!payload.notes || (payload.notes as string).toLowerCase() === 'skip' ? '(None)' : payload.notes}`,
+        `• **Patient:** ${String(payload.patientIdentifier)}`,
+        `• **Notes:** ${!payload.notes || (payload.notes as string).toLowerCase() === 'skip' ? '(None)' : String(payload.notes)}`,
         '',
         '⚠️ **This action will create a new visit record.**',
         '',
@@ -1105,8 +1208,8 @@ function buildConfirmationSummary(intent: AiIntent, payload: Record<string, unkn
       return [
         '**Please review the test order:**',
         '',
-        `• **Visit:** ${payload.visitIdentifier}`,
-        `• **Test Search:** ${payload.testSearch}`,
+        `• **Visit:** ${String(payload.visitIdentifier)}`,
+        `• **Test Search:** ${String(payload.testSearch)}`,
         '',
         'I will find matching tests and add them to the visit.',
         '',
@@ -1119,7 +1222,7 @@ function buildConfirmationSummary(intent: AiIntent, payload: Record<string, unkn
       return [
         '**Please review the invoice request:**',
         '',
-        `• **Visit:** ${payload.visitIdentifier}`,
+        `• **Visit:** ${String(payload.visitIdentifier)}`,
         '',
         '⚠️ **This action will generate a billing invoice.**',
         '',
@@ -1127,13 +1230,13 @@ function buildConfirmationSummary(intent: AiIntent, payload: Record<string, unkn
       ].join('\n');
 
     case 'SEARCH_PATIENT':
-      return `I will search for patients matching: **${payload.searchTerm}**`;
+      return `I will search for patients matching: **${String(payload.searchTerm)}**`;
 
     case 'SEARCH_VISIT':
-      return `I will search for visits matching: **${payload.searchTerm}**`;
+      return `I will search for visits matching: **${String(payload.searchTerm)}**`;
 
     case 'CHECK_REPORT_STATUS':
-      return `I will look up the report status for: **${payload.identifier}**`;
+      return `I will look up the report status for: **${String(payload.identifier)}**`;
 
     default:
       return `Ready to execute: **${intent}**. Please confirm.`;
@@ -1239,13 +1342,15 @@ export async function handleChat(
 
       const step = steps[0];
       const reply = [
-        'Understood. Let\'s start over.',
+        "Understood. Let's start over.",
         '',
         `**${INTENT_LABELS[conversation.state.intent!] || 'Task'} — Step 1 of ${steps.length}: ${step.label}**`,
         '',
         step.question,
         step.hint ? `\n_${step.hint}_` : '',
-      ].filter(Boolean).join('\n');
+      ]
+        .filter(Boolean)
+        .join('\n');
 
       conversation.history.push({ role: 'assistant', content: reply });
 
@@ -1257,7 +1362,8 @@ export async function handleChat(
       };
     } else {
       // Invalid response during confirmation
-      const reply = 'Please respond with **Yes** to confirm or **No** to start over. You may also type **cancel** to abort.';
+      const reply =
+        'Please respond with **Yes** to confirm or **No** to start over. You may also type **cancel** to abort.';
       conversation.history.push({ role: 'assistant', content: reply });
       return {
         message: reply,
@@ -1269,7 +1375,11 @@ export async function handleChat(
   }
 
   // ── 3. ACTIVE TASK FLOW — collect and validate field data ──────────────────
-  if (conversation.state.intent && !conversation.state.awaitingConfirmation && !conversation.state.completed) {
+  if (
+    conversation.state.intent &&
+    !conversation.state.awaitingConfirmation &&
+    !conversation.state.completed
+  ) {
     const steps = getTaskSteps(conversation.state.intent);
 
     if (steps.length > 0 && conversation.state.currentStep < steps.length) {
@@ -1286,7 +1396,9 @@ export async function handleChat(
           '',
           currentStep.question,
           currentStep.hint ? `\n_${currentStep.hint}_` : '',
-        ].filter(Boolean).join('\n');
+        ]
+          .filter(Boolean)
+          .join('\n');
 
         conversation.history.push({ role: 'assistant', content: reply });
         return {
@@ -1309,7 +1421,9 @@ export async function handleChat(
           '',
           nextStep.question,
           nextStep.hint ? `\n_${nextStep.hint}_` : '',
-        ].filter(Boolean).join('\n');
+        ]
+          .filter(Boolean)
+          .join('\n');
 
         conversation.history.push({ role: 'assistant', content: reply });
         return {
@@ -1345,7 +1459,10 @@ export async function handleChat(
 
       // Write intents — show confirmation summary
       conversation.state.awaitingConfirmation = true;
-      const summary = buildConfirmationSummary(conversation.state.intent, conversation.state.payload);
+      const summary = buildConfirmationSummary(
+        conversation.state.intent,
+        conversation.state.payload,
+      );
       conversation.history.push({ role: 'assistant', content: summary });
 
       return {
@@ -1364,13 +1481,15 @@ export async function handleChat(
     // Navigation — immediate response
     if (detectedIntent === 'NAVIGATE') {
       const nav = getNavigationResponse(message);
-      const reply = nav || [
-        'Where would you like to navigate? Available sections:',
-        '',
-        '• Dashboard • Patients • Visits • Tests',
-        '• Test Orders • Samples • Results • Reports',
-        '• Invoices • Users',
-      ].join('\n');
+      const reply =
+        nav ||
+        [
+          'Where would you like to navigate? Available sections:',
+          '',
+          '• Dashboard • Patients • Visits • Tests',
+          '• Test Orders • Samples • Results • Reports',
+          '• Invoices • Users',
+        ].join('\n');
 
       conversation.history.push({ role: 'assistant', content: reply });
       return {
@@ -1397,7 +1516,7 @@ export async function handleChat(
 
     // Start the task flow
     const steps = getTaskSteps(detectedIntent);
-    const stepLabels = steps.map(s => s.label);
+    const stepLabels = steps.map((s) => s.label);
 
     conversation.state = {
       intent: detectedIntent,
@@ -1423,7 +1542,9 @@ export async function handleChat(
       firstStep.hint ? `\n_${firstStep.hint}_` : '',
       '',
       '_Type **cancel** at any time to abort._',
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     conversation.history.push({ role: 'assistant', content: reply });
     return {
@@ -1458,20 +1579,35 @@ export async function handleChat(
       conversationId: conversation.id,
       state: conversation.state,
       messageType: 'system',
-      suggestions: ['Register a patient', 'Create a visit', 'Search patient', 'Check report status'],
+      suggestions: [
+        'Register a patient',
+        'Create a visit',
+        'Search patient',
+        'Check report status',
+      ],
     };
   }
 
   // ── 6. ACKNOWLEDGMENTS — brief, redirect to actions ─────────────────────────
-  if (/^(thanks|thank\s*you|ok|okay|sure|great|got\s*it|cool|nice|alright|understood)\b/i.test(trimmed)) {
-    const ack = 'Acknowledged. State your next request, or choose from the available actions:\n\n• **Register a patient** • **Create a visit** • **Add tests** • **Generate invoice** • **Search patient** • **Check report status**';
+  if (
+    /^(thanks|thank\s*you|ok|okay|sure|great|got\s*it|cool|nice|alright|understood)\b/i.test(
+      trimmed,
+    )
+  ) {
+    const ack =
+      'Acknowledged. State your next request, or choose from the available actions:\n\n• **Register a patient** • **Create a visit** • **Add tests** • **Generate invoice** • **Search patient** • **Check report status**';
     conversation.history.push({ role: 'assistant', content: ack });
     return {
       message: ack,
       conversationId: conversation.id,
       state: conversation.state,
       messageType: 'system',
-      suggestions: ['Register a patient', 'Create a visit', 'Search patient', 'Check report status'],
+      suggestions: [
+        'Register a patient',
+        'Create a visit',
+        'Search patient',
+        'Check report status',
+      ],
     };
   }
 

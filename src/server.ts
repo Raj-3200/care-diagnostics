@@ -16,16 +16,28 @@ const startServer = async () => {
     });
 
     // Graceful shutdown
+    let isShuttingDown = false;
+
     const gracefulShutdown = (signal: string) => {
+      if (isShuttingDown) {
+        return;
+      }
+      isShuttingDown = true;
+
       console.log(`\n${signal} received. Starting graceful shutdown...`);
 
       server.close(() => {
         console.log('🛑 HTTP server closed');
 
-        void disconnect().then(() => {
-          console.log('👋 Process terminated');
-          process.exit(0);
-        });
+        void disconnect()
+          .then(() => {
+            console.log('👋 Process terminated');
+            process.exit(0);
+          })
+          .catch((error: unknown) => {
+            console.error('❌ Error while disconnecting database:', error);
+            process.exit(1);
+          });
       });
 
       // Force shutdown after 10 seconds

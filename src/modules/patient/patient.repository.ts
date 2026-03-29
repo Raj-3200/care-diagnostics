@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database.js';
-import { Patient } from '@prisma/client';
+import { Gender, Patient, Prisma } from '@prisma/client';
 import { PaginationParams } from '../../shared/types/common.types.js';
 
 export const findByMRN = async (mrn: string): Promise<Patient | null> => {
@@ -18,20 +18,20 @@ export const findById = async (id: string): Promise<Patient | null> => {
 
 export const findAll = async (
   pagination: PaginationParams,
-  filters?: { searchTerm?: string }
+  filters?: { searchTerm?: string },
 ): Promise<{ patients: Patient[]; total: number }> => {
   const { page, limit } = pagination;
   const skip = (page - 1) * limit;
 
-  const whereClause = {
-    deletedAt: null as any,
+  const whereClause: Prisma.PatientWhereInput = {
+    deletedAt: null,
     ...(filters?.searchTerm && {
       OR: [
-        { firstName: { contains: filters.searchTerm, mode: 'insensitive' as any } },
-        { lastName: { contains: filters.searchTerm, mode: 'insensitive' as any } },
-        { mrn: { contains: filters.searchTerm, mode: 'insensitive' as any } },
-        { email: { contains: filters.searchTerm, mode: 'insensitive' as any } },
-        { phone: { contains: filters.searchTerm, mode: 'insensitive' as any } },
+        { firstName: { contains: filters.searchTerm, mode: 'insensitive' as const } },
+        { lastName: { contains: filters.searchTerm, mode: 'insensitive' as const } },
+        { mrn: { contains: filters.searchTerm, mode: 'insensitive' as const } },
+        { email: { contains: filters.searchTerm, mode: 'insensitive' as const } },
+        { phone: { contains: filters.searchTerm, mode: 'insensitive' as const } },
       ],
     }),
   };
@@ -55,7 +55,7 @@ export const create = async (data: {
   firstName: string;
   lastName: string;
   dateOfBirth: Date;
-  gender: any;
+  gender: Gender;
   phone: string;
   email?: string | null;
   address?: string | null;
@@ -79,7 +79,7 @@ export const update = async (
     firstName?: string;
     lastName?: string;
     dateOfBirth?: Date;
-    gender?: any;
+    gender?: Gender;
     phone?: string;
     email?: string | null;
     address?: string | null;
@@ -89,7 +89,7 @@ export const update = async (
     bloodGroup?: string | null;
     emergencyContactName?: string | null;
     emergencyContactPhone?: string | null;
-  }
+  },
 ): Promise<Patient> => {
   return prisma.patient.update({
     where: { id, deletedAt: null },

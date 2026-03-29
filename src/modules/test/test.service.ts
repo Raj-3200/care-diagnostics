@@ -10,7 +10,7 @@ import { TestCategory } from '@prisma/client';
  * Tests are master data - defined once, used many times
  * Test codes must be unique and human-readable
  */
-export const createTest = async (data: CreateTestInput): Promise<any> => {
+export const createTest = async (data: CreateTestInput) => {
   // Check for duplicate code
   const existingTest = await testRepository.findByCode(data.code);
   if (existingTest) {
@@ -18,12 +18,17 @@ export const createTest = async (data: CreateTestInput): Promise<any> => {
   }
 
   // Create test
-  const createData: any = { ...data };
-  if (data.description === null) createData.description = undefined;
-  if (data.department === null) createData.department = undefined;
-  if (data.instructions === null) createData.instructions = undefined;
-
-  const test = await testRepository.create(createData);
+  const test = await testRepository.create({
+    code: data.code,
+    name: data.name,
+    category: data.category,
+    sampleType: data.sampleType,
+    price: data.price,
+    turnaroundTime: data.turnaroundTime,
+    ...(data.description != null && { description: data.description }),
+    ...(data.department != null && { department: data.department }),
+    ...(data.instructions != null && { instructions: data.instructions }),
+  });
 
   return test;
 };
@@ -66,7 +71,7 @@ export const listTests = async (
     category?: TestCategory;
     isActive?: boolean;
     searchTerm?: string;
-  }
+  },
 ) => {
   return testRepository.findAll(pagination, filters);
 };
@@ -84,7 +89,7 @@ export const getTestsByCategory = async (category: TestCategory, pagination: Pag
  * Can update pricing, turnaround times, instructions, etc.
  * Cannot change test code once created
  */
-export const updateTest = async (testId: string, data: UpdateTestInput): Promise<any> => {
+export const updateTest = async (testId: string, data: UpdateTestInput) => {
   // Verify test exists
   const existingTest = await testRepository.findById(testId);
   if (!existingTest) {
@@ -92,12 +97,13 @@ export const updateTest = async (testId: string, data: UpdateTestInput): Promise
   }
 
   // Update test
-  const updateData: any = { ...data };
-  if (data.description === null) updateData.description = undefined;
-  if (data.department === null) updateData.department = undefined;
-  if (data.instructions === null) updateData.instructions = undefined;
-
-  const updatedTest = await testRepository.update(testId, updateData);
+  const { description, department, instructions, ...rest } = data;
+  const updatedTest = await testRepository.update(testId, {
+    ...rest,
+    ...(description !== undefined && { description: description ?? undefined }),
+    ...(department !== undefined && { department: department ?? undefined }),
+    ...(instructions !== undefined && { instructions: instructions ?? undefined }),
+  });
 
   return updatedTest;
 };
@@ -107,7 +113,7 @@ export const updateTest = async (testId: string, data: UpdateTestInput): Promise
  * Deactivated tests won't appear in test selection UI
  * But existing orders using this test remain valid
  */
-export const deactivateTest = async (testId: string): Promise<any> => {
+export const deactivateTest = async (testId: string) => {
   // Verify test exists
   const existingTest = await testRepository.findById(testId);
   if (!existingTest) {
@@ -123,7 +129,7 @@ export const deactivateTest = async (testId: string): Promise<any> => {
 /**
  * Activate test
  */
-export const activateTest = async (testId: string): Promise<any> => {
+export const activateTest = async (testId: string) => {
   // Verify test exists
   const existingTest = await testRepository.findById(testId);
   if (!existingTest) {
@@ -154,7 +160,7 @@ export const deleteTest = async (testId: string) => {
 
   if (testOrderCount > 0) {
     throw new ConflictError(
-      'Cannot delete test with existing orders. Consider deactivating instead.'
+      'Cannot delete test with existing orders. Consider deactivating instead.',
     );
   }
 

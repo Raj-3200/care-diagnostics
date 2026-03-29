@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database.js';
-import { Test, TestCategory, SampleType } from '@prisma/client';
+import { Test, TestCategory, SampleType, Prisma } from '@prisma/client';
 import { PaginationParams } from '../../shared/types/common.types.js';
 
 export const findByCode = async (code: string): Promise<Test | null> => {
@@ -16,12 +16,12 @@ export const findById = async (id: string): Promise<Test | null> => {
 
 export const findAll = async (
   pagination: PaginationParams,
-  filters?: { category?: TestCategory; isActive?: boolean; searchTerm?: string }
+  filters?: { category?: TestCategory; isActive?: boolean; searchTerm?: string },
 ): Promise<{ tests: Test[]; total: number }> => {
   const { page, limit } = pagination;
   const skip = (page - 1) * limit;
 
-  const whereClause: any = {
+  const whereClause: Prisma.TestWhereInput = {
     deletedAt: null,
   };
 
@@ -76,7 +76,7 @@ export const update = async (
     department?: string;
     instructions?: string;
     isActive?: boolean;
-  }
+  },
 ): Promise<Test> => {
   return prisma.test.update({
     where: { id, deletedAt: null },
@@ -93,7 +93,7 @@ export const softDelete = async (id: string): Promise<void> => {
 
 export const findByCategory = async (
   category: TestCategory,
-  pagination: PaginationParams
+  pagination: PaginationParams,
 ): Promise<{ tests: Test[]; total: number }> => {
   const { page, limit } = pagination;
   const skip = (page - 1) * limit;

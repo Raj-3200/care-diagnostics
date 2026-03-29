@@ -2,7 +2,15 @@ import * as testOrderRepository from './testOrder.repository.js';
 import { ConflictError, NotFoundError } from '../../shared/errors/AppError.js';
 import { PaginationParams } from '../../shared/types/common.types.js';
 import { prisma } from '../../config/database.js';
-import { CreateTestOrderInput, UpdateTestOrderInput, BulkCreateTestOrderInput } from './testOrder.validators.js';
+import { Prisma } from '@prisma/client';
+import {
+  CreateTestOrderInput,
+  UpdateTestOrderInput,
+  BulkCreateTestOrderInput,
+} from './testOrder.validators.js';
+import { TestOrderWithRelations } from './testOrder.repository.js';
+
+const MAX_SERIALIZABLE_RETRIES = 3;
 
 /**
  * Create a test order for a visit
@@ -11,8 +19,8 @@ import { CreateTestOrderInput, UpdateTestOrderInput, BulkCreateTestOrderInput } 
  */
 export const createTestOrder = async (
   data: CreateTestOrderInput,
-  _createdByUserId: string
-): Promise<any> => {
+  _createdByUserId: string,
+): Promise<TestOrderWithRelations> => {
   // Verify visit exists
   const visit = await prisma.visit.findUnique({
     where: { id: data.visitId, deletedAt: null },
@@ -44,13 +52,17 @@ export const createTestOrder = async (
     throw new ConflictError('This test is already ordered for this visit');
   }
 
-  // Create test order
-  const createData: any = { ...data };
-  if (data.notes === null) createData.notes = undefined;
-
-  const testOrder = await testOrderRepository.create(createData);
-
-  return testOrder;
+  try {
+    return await testOrderRepository.create({
+      ...data,
+      notes: data.notes ?? undefined,
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new ConflictError('This test is already ordered for this visit');
+    }
+    throw error;
+  }
 };
 
 /**
@@ -60,25 +72,99 @@ export const createTestOrder = async (
 export const bulkCreateTestOrders = async (
   visitId: string,
   tests: BulkCreateTestOrderInput,
-  createdByUserId: string
-): Promise<any[]> => {
-  // Verify visit exists
-  const visit = await prisma.visit.findUnique({
-    where: { id: visitId, deletedAt: null },
-  });
-
-  if (!visit) {
-    throw new NotFoundError('Visit not found');
+  _createdByUserId: string,
+): Promise<TestOrderWithRelations[]> => {
+  if (tests.length === 0) {
+    return [];
   }
 
-  // Create all test orders
-  const testOrders = await Promise.all(
-    tests.map((test) =>
-      createTestOrder({ ...test, visitId }, createdByUserId)
-    )
-  );
+  const uniqueTestIds = new Set<string>();
+  for (const test of tests) {
+    if (uniqueTestIds.has(test.testId)) {
+      throw new ConflictError('Duplicate test IDs found in bulk order request');
+    }
+    uniqueTestIds.add(test.testId);
+  }
 
-  return testOrders;
+  const testIds = Array.from(uniqueTestIds);
+
+  for (let attempt = 1; attempt <= MAX_SERIALIZABLE_RETRIES; attempt += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const visit = await tx.visit.findFirst({
+            where: { id: visitId, deletedAt: null },
+            select: { id: true },
+          });
+
+          if (!visit) {
+            throw new NotFoundError('Visit not found');
+          }
+
+          const testsInCatalog = await tx.test.findMany({
+            where: { id: { in: testIds }, deletedAt: null },
+            select: { id: true, isActive: true },
+          });
+
+          if (testsInCatalog.length !== testIds.length) {
+            throw new NotFoundError('One or more tests do not exist');
+          }
+
+          const inactiveTest = testsInCatalog.find((test) => !test.isActive);
+          if (inactiveTest) {
+            throw new ConflictError('One or more tests are inactive and cannot be ordered');
+          }
+
+          const existingOrders = await tx.testOrder.findMany({
+            where: { visitId, testId: { in: testIds }, deletedAt: null },
+            select: { testId: true },
+          });
+
+          if (existingOrders.length > 0) {
+            throw new ConflictError('One or more tests are already ordered for this visit');
+          }
+
+          const createdOrders = await Promise.all(
+            tests.map((test) =>
+              tx.testOrder.create({
+                data: {
+                  visitId,
+                  testId: test.testId,
+                  priority: test.priority,
+                  notes: test.notes ?? undefined,
+                },
+                include: {
+                  visit: { include: { patient: true } },
+                  test: true,
+                  sample: true,
+                  result: true,
+                },
+              }),
+            ),
+          );
+
+          return createdOrders;
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === 'P2034' || error.code === 'P2002')
+      ) {
+        if (attempt < MAX_SERIALIZABLE_RETRIES) {
+          continue;
+        }
+        throw new ConflictError('Concurrent ordering conflict. Please retry the request.');
+      }
+
+      throw error;
+    }
+  }
+
+  throw new ConflictError('Could not create test orders due to concurrent updates.');
 };
 
 /**
@@ -124,7 +210,7 @@ export const getAllTestOrders = async (pagination: PaginationParams) => {
 export const updateTestOrder = async (
   testOrderId: string,
   data: UpdateTestOrderInput,
-  _updatedByUserId: string
+  _updatedByUserId: string,
 ) => {
   // Verify test order exists
   const existingTestOrder = await testOrderRepository.findById(testOrderId);
@@ -133,10 +219,10 @@ export const updateTestOrder = async (
   }
 
   // Update test order
-  const updateData: any = { ...data };
-  if (data.notes === null) updateData.notes = undefined;
-
-  const updatedTestOrder = await testOrderRepository.update(testOrderId, updateData);
+  const updatedTestOrder = await testOrderRepository.update(testOrderId, {
+    ...data,
+    notes: data.notes ?? undefined,
+  });
 
   return updatedTestOrder;
 };
@@ -155,14 +241,14 @@ export const cancelTestOrder = async (testOrderId: string, _cancelledByUserId: s
   // Check if sample has been collected
   if (existingTestOrder.sample) {
     throw new ConflictError(
-      'Cannot cancel test order after sample has been collected. Please contact administrator.'
+      'Cannot cancel test order after sample has been collected. Please contact administrator.',
     );
   }
 
   // Check if result has been entered
   if (existingTestOrder.result) {
     throw new ConflictError(
-      'Cannot cancel test order after result has been entered. Please contact administrator.'
+      'Cannot cancel test order after result has been entered. Please contact administrator.',
     );
   }
 

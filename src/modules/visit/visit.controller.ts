@@ -91,14 +91,15 @@ export const getPatientVisits = async (
 ): Promise<void> => {
   try {
     const { patientId } = req.params;
-    const { page, limit } = req.query as any;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 30;
 
     const { visits, total } = await visitService.getPatientVisits(patientId, {
-      page: Number(page) || 1,
-      limit: Number(limit) || 30,
+      page,
+      limit,
     });
 
-    sendPaginated(res, visits, Number(page) || 1, Number(limit) || 30, total);
+    sendPaginated(res, visits, page, limit, total);
   } catch (error) {
     next(error);
   }
@@ -117,17 +118,20 @@ export const getAllVisits = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { status, patientId, page, limit } = req.query as any;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 30;
+    const status = req.query.status as VisitStatus | undefined;
+    const patientId = req.query.patientId as string | undefined;
 
     const { visits, total } = await visitService.getAllVisits(
-      { page: Number(page) || 1, limit: Number(limit) || 30 },
+      { page, limit },
       {
-        status: status as VisitStatus,
+        status,
         patientId,
-      }
+      },
     );
 
-    sendPaginated(res, visits, Number(page) || 1, Number(limit) || 30, total);
+    sendPaginated(res, visits, page, limit, total);
   } catch (error) {
     next(error);
   }

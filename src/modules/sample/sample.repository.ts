@@ -1,49 +1,41 @@
 import { prisma } from '../../config/database.js';
-import { Sample, SampleStatus } from '@prisma/client';
+import { SampleStatus, SampleType, Prisma } from '@prisma/client';
 import { PaginationParams } from '../../shared/types/common.types.js';
 
-export type SampleWithRelations = Sample & {
-  testOrder?: any;
-};
+const sampleIncludes = {
+  testOrder: { include: { test: true, visit: { include: { patient: true } } } },
+  collectedBy: { select: { id: true, firstName: true, lastName: true } },
+} as const;
 
-export const findById = async (id: string): Promise<SampleWithRelations | null> => {
+export const findById = async (id: string) => {
   return prisma.sample.findUnique({
     where: { id, deletedAt: null },
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      collectedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: sampleIncludes,
   });
 };
 
-export const findByBarcode = async (barcode: string): Promise<SampleWithRelations | null> => {
+export const findByBarcode = async (barcode: string) => {
   return prisma.sample.findUnique({
     where: { barcode, deletedAt: null },
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      collectedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: sampleIncludes,
   });
 };
 
-export const findByTestOrderId = async (testOrderId: string): Promise<SampleWithRelations | null> => {
+export const findByTestOrderId = async (testOrderId: string) => {
   return prisma.sample.findUnique({
     where: { testOrderId, deletedAt: null },
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      collectedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: sampleIncludes,
   });
 };
 
 export const findAll = async (
   pagination: PaginationParams,
-  filters?: { status?: SampleStatus }
-): Promise<{ samples: SampleWithRelations[]; total: number }> => {
+  filters?: { status?: SampleStatus },
+) => {
   const { page, limit } = pagination;
   const skip = (page - 1) * limit;
 
-  const whereClause: any = {
+  const whereClause: Prisma.SampleWhereInput = {
     deletedAt: null,
   };
 
@@ -55,10 +47,7 @@ export const findAll = async (
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
-      include: {
-        testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-        collectedBy: { select: { id: true, firstName: true, lastName: true } },
-      },
+      include: sampleIncludes,
     }),
     prisma.sample.count({ where: whereClause }),
   ]);
@@ -69,18 +58,17 @@ export const findAll = async (
 export const create = async (data: {
   testOrderId: string;
   barcode: string;
-  sampleType: any;
+  sampleType: SampleType;
   notes?: string | null;
-}): Promise<SampleWithRelations> => {
-  const createData: any = { ...data };
-  if (data.notes === null) createData.notes = undefined;
-
+}) => {
   return prisma.sample.create({
-    data: createData,
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      collectedBy: { select: { id: true, firstName: true, lastName: true } },
+    data: {
+      testOrderId: data.testOrderId,
+      barcode: data.barcode,
+      sampleType: data.sampleType,
+      ...(data.notes != null && { notes: data.notes }),
     },
+    include: sampleIncludes,
   });
 };
 
@@ -92,26 +80,20 @@ export const update = async (
     collectedById?: string;
     rejectionReason?: string;
     notes?: string;
-  }
-): Promise<SampleWithRelations> => {
+  },
+) => {
   return prisma.sample.update({
     where: { id, deletedAt: null },
     data,
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      collectedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: sampleIncludes,
   });
 };
 
-export const updateStatus = async (id: string, status: SampleStatus): Promise<SampleWithRelations> => {
+export const updateStatus = async (id: string, status: SampleStatus) => {
   return prisma.sample.update({
     where: { id, deletedAt: null },
     data: { status },
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      collectedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: sampleIncludes,
   });
 };
 

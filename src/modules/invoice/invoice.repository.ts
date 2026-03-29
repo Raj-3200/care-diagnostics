@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database.js';
+import { Prisma, InvoiceStatus, PaymentMethod } from '@prisma/client';
 
 const invoiceIncludes = {
   visit: {
@@ -43,8 +44,8 @@ export const findAll = async (params: {
   const { page, limit, status, patientId } = params;
   const skip = (page - 1) * limit;
 
-  const where: any = { deletedAt: null };
-  if (status) where.status = status;
+  const where: Prisma.InvoiceWhereInput = { deletedAt: null };
+  if (status) where.status = status as InvoiceStatus;
   if (patientId) {
     where.visit = { patientId, deletedAt: null };
   }
@@ -92,7 +93,16 @@ export const create = async (data: {
 
 export const update = async (
   id: string,
-  data: Record<string, any>,
+  data: {
+    paidAmount?: number;
+    dueAmount?: number;
+    status?: InvoiceStatus;
+    paymentMethod?: PaymentMethod;
+    notes?: string | null;
+    discountAmount?: number;
+    taxAmount?: number;
+    netAmount?: number;
+  },
 ) => {
   return prisma.invoice.update({
     where: { id },

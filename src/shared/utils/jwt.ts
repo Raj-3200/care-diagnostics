@@ -1,7 +1,15 @@
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
+import { Role } from '@prisma/client';
 import { env } from '../../config/env.js';
 import { TokenPayload } from '../types/auth.types.js';
 import { UnauthorizedError } from '../errors/AppError.js';
+
+const tokenPayloadSchema = z.object({
+  userId: z.string().uuid(),
+  email: z.string().email(),
+  role: z.nativeEnum(Role),
+});
 
 export const generateAccessToken = (payload: TokenPayload): string => {
   return (jwt.sign as (payload: object, secret: string, options: { expiresIn: string }) => string)(
@@ -25,7 +33,8 @@ export const generateRefreshToken = (payload: TokenPayload): string => {
 
 export const verifyAccessToken = (token: string): TokenPayload => {
   try {
-    return jwt.verify(token, env.JWT_ACCESS_SECRET) as TokenPayload;
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET);
+    return tokenPayloadSchema.parse(decoded);
   } catch (error) {
     throw new UnauthorizedError('Invalid or expired access token');
   }
@@ -33,7 +42,8 @@ export const verifyAccessToken = (token: string): TokenPayload => {
 
 export const verifyRefreshToken = (token: string): TokenPayload => {
   try {
-    return jwt.verify(token, env.JWT_REFRESH_SECRET) as TokenPayload;
+    const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
+    return tokenPayloadSchema.parse(decoded);
   } catch (error) {
     throw new UnauthorizedError('Invalid or expired refresh token');
   }

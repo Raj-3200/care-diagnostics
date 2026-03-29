@@ -3,10 +3,10 @@ import { TestOrder } from '@prisma/client';
 import { PaginationParams } from '../../shared/types/common.types.js';
 
 export type TestOrderWithRelations = TestOrder & {
-  visit?: any;
-  test?: any;
-  sample?: any;
-  result?: any;
+  visit?: Record<string, unknown>;
+  test?: Record<string, unknown>;
+  sample?: Record<string, unknown> | null;
+  result?: Record<string, unknown> | null;
 };
 
 export const findById = async (id: string): Promise<TestOrderWithRelations | null> => {
@@ -34,7 +34,7 @@ export const findByVisitId = async (visitId: string): Promise<TestOrderWithRelat
 };
 
 export const findAll = async (
-  pagination: PaginationParams
+  pagination: PaginationParams,
 ): Promise<{ testOrders: TestOrderWithRelations[]; total: number }> => {
   const { page, limit } = pagination;
   const skip = (page - 1) * limit;
@@ -83,7 +83,7 @@ export const update = async (
   data: {
     priority?: string;
     notes?: string;
-  }
+  },
 ): Promise<TestOrderWithRelations> => {
   return prisma.testOrder.update({
     where: { id, deletedAt: null },

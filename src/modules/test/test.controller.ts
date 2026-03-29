@@ -85,7 +85,9 @@ export const listTests = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { category, isActive, searchTerm } = req.query as any;
+    const category = req.query.category as TestCategory | undefined;
+    const isActive = req.query.isActive as string | undefined;
+    const searchTerm = req.query.searchTerm as string | undefined;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 30;
 
@@ -95,7 +97,7 @@ export const listTests = async (
         category: category as TestCategory,
         isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
         searchTerm,
-      }
+      },
     );
 
     sendPaginated(res, tests, page, limit, total);
@@ -118,14 +120,15 @@ export const getTestsByCategory = async (
 ): Promise<void> => {
   try {
     const { category } = req.params;
-    const { page, limit } = req.query as any;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 30;
 
     const { tests, total } = await testService.getTestsByCategory(category as TestCategory, {
-      page: Number(page) || 1,
-      limit: Number(limit) || 30,
+      page,
+      limit,
     });
 
-    sendPaginated(res, tests, Number(page) || 1, Number(limit) || 30, total);
+    sendPaginated(res, tests, page, limit, total);
   } catch (error) {
     next(error);
   }

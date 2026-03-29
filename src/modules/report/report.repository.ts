@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database.js';
+import { Prisma, ReportStatus } from '@prisma/client';
 
-const reportIncludes = {
+export const reportIncludes = {
   visit: {
     include: {
       patient: true,
@@ -53,8 +54,8 @@ export const findAll = async (params: {
   const { page, limit, status, patientId } = params;
   const skip = (page - 1) * limit;
 
-  const where: any = { deletedAt: null };
-  if (status) where.status = status;
+  const where: Prisma.ReportWhereInput = { deletedAt: null };
+  if (status) where.status = status as ReportStatus;
   if (patientId) {
     where.visit = { patientId, deletedAt: null };
   }
@@ -91,7 +92,7 @@ export const create = async (data: {
 export const update = async (
   id: string,
   data: {
-    status?: any;
+    status?: ReportStatus;
     fileUrl?: string | null;
     generatedAt?: Date | null;
     approvedById?: string | null;
@@ -101,15 +102,15 @@ export const update = async (
 ) => {
   return prisma.report.update({
     where: { id },
-    data: data as any,
+    data,
     include: reportIncludes,
   });
 };
 
 export const updateStatus = async (
   id: string,
-  status: any,
-  extraData?: Record<string, any>,
+  status: ReportStatus,
+  extraData?: Record<string, unknown>,
 ) => {
   return prisma.report.update({
     where: { id },

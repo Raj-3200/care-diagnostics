@@ -41,15 +41,15 @@ interface ReportData {
 }
 
 const COLORS = {
-  primary: '#1e40af' as const,      // blue-800
-  secondary: '#1e3a5f' as const,    // dark blue
-  accent: '#2563eb' as const,       // blue-600
-  text: '#1f2937' as const,         // gray-800
-  textLight: '#6b7280' as const,    // gray-500
-  border: '#d1d5db' as const,       // gray-300
-  headerBg: '#eff6ff' as const,     // blue-50
-  abnormal: '#dc2626' as const,     // red-600
-  success: '#16a34a' as const,      // green-600
+  primary: '#1e40af' as const, // blue-800
+  secondary: '#1e3a5f' as const, // dark blue
+  accent: '#2563eb' as const, // blue-600
+  text: '#1f2937' as const, // gray-800
+  textLight: '#6b7280' as const, // gray-500
+  border: '#d1d5db' as const, // gray-300
+  headerBg: '#eff6ff' as const, // blue-50
+  abnormal: '#dc2626' as const, // red-600
+  success: '#16a34a' as const, // green-600
   white: '#ffffff' as const,
 };
 
@@ -99,17 +99,16 @@ export function generateReportPDF(data: ReportData): PassThrough {
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
   // ─── HEADER / LETTERHEAD ─────────────────────────────────
-  doc
-    .fontSize(22)
-    .fillColor(COLORS.primary)
-    .text('Care Diagnostics', { align: 'center' });
+  doc.fontSize(22).fillColor(COLORS.primary).text('Care Diagnostics', { align: 'center' });
 
   doc
     .fontSize(9)
     .fillColor(COLORS.textLight)
     .text('Advanced Laboratory & Diagnostic Centre', { align: 'center' })
     .text('123 Healthcare Avenue, Medical District, New Delhi - 110001', { align: 'center' })
-    .text('Phone: +91 11 2345 6789  |  Email: reports@carediagnostics.in  |  NABL Accredited', { align: 'center' });
+    .text('Phone: +91 11 2345 6789  |  Email: reports@carediagnostics.in  |  NABL Accredited', {
+      align: 'center',
+    });
 
   doc.moveDown(0.3);
 
@@ -126,9 +125,7 @@ export function generateReportPDF(data: ReportData): PassThrough {
 
   // ─── REPORT TITLE BAR ────────────────────────────────────
   const titleBarY = doc.y;
-  doc
-    .rect(doc.page.margins.left, titleBarY, pageWidth, 24)
-    .fill(COLORS.primary);
+  doc.rect(doc.page.margins.left, titleBarY, pageWidth, 24).fill(COLORS.primary);
   doc
     .fontSize(12)
     .fillColor(COLORS.white)
@@ -176,7 +173,10 @@ export function generateReportPDF(data: ReportData): PassThrough {
   const patientFields = [
     ['Patient Name:', `${data.patient.firstName} ${data.patient.lastName}`],
     ['MRN:', data.patient.mrn],
-    ['Date of Birth:', `${formatDate(data.patient.dateOfBirth)} (${calculateAge(data.patient.dateOfBirth)})`],
+    [
+      'Date of Birth:',
+      `${formatDate(data.patient.dateOfBirth)} (${calculateAge(data.patient.dateOfBirth)})`,
+    ],
   ];
 
   const patientFields2 = [
@@ -188,14 +188,20 @@ export function generateReportPDF(data: ReportData): PassThrough {
   let py = patY;
   for (const [label, value] of patientFields) {
     doc.fontSize(8).fillColor(COLORS.textLight).text(label, doc.page.margins.left, py);
-    doc.fontSize(9).fillColor(COLORS.text).text(value, doc.page.margins.left + 85, py);
+    doc
+      .fontSize(9)
+      .fillColor(COLORS.text)
+      .text(value, doc.page.margins.left + 85, py);
     py += 14;
   }
 
   py = patY;
   for (const [label, value] of patientFields2) {
     doc.fontSize(8).fillColor(COLORS.textLight).text(label, patCol2, py);
-    doc.fontSize(9).fillColor(COLORS.text).text(value, patCol2 + 85, py);
+    doc
+      .fontSize(9)
+      .fillColor(COLORS.text)
+      .text(value, patCol2 + 85, py);
     py += 14;
   }
 
@@ -210,8 +216,8 @@ export function generateReportPDF(data: ReportData): PassThrough {
     pageWidth * 0.28, // Test Name
     pageWidth * 0.12, // Code
     pageWidth * 0.15, // Result
-    pageWidth * 0.10, // Unit
-    pageWidth * 0.20, // Reference Range
+    pageWidth * 0.1, // Unit
+    pageWidth * 0.2, // Reference Range
     pageWidth * 0.15, // Status
   ];
   const colHeaders = ['Test Name', 'Code', 'Result', 'Unit', 'Ref. Range', 'Status'];
@@ -271,7 +277,6 @@ export function generateReportPDF(data: ReportData): PassThrough {
     for (let i = 0; i < rowValues.length; i++) {
       const isResultCol = i === 2;
       const color = isResultCol && result.isAbnormal ? COLORS.abnormal : COLORS.text;
-      const fontWeight = isResultCol && result.isAbnormal;
 
       doc.fontSize(8).fillColor(color);
       let text = rowValues[i];
@@ -294,7 +299,6 @@ export function generateReportPDF(data: ReportData): PassThrough {
   }
 
   // draw table outer border
-  const tableHeight = tableY - (doc.y || 0);
   doc
     .rect(tableX, doc.y - (data.testResults.length > 0 ? 0 : 0), pageWidth, 0)
     .strokeColor(COLORS.border)
@@ -387,12 +391,10 @@ export function generateReportPDF(data: ReportData): PassThrough {
     doc
       .fontSize(7)
       .fillColor(COLORS.textLight)
-      .text(
-        `Page ${i + 1} of ${pages.count}`,
-        doc.page.margins.left,
-        doc.page.height - 25,
-        { width: pageWidth, align: 'center' },
-      );
+      .text(`Page ${i + 1} of ${pages.count}`, doc.page.margins.left, doc.page.height - 25, {
+        width: pageWidth,
+        align: 'center',
+      });
   }
 
   doc.end();

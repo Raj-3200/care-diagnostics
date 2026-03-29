@@ -6,17 +6,18 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\" \"prisma/**/*.ts\""
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Guptajinx/care-digonistcs.git"
+    "url": "git+https://github.com/Raj-3200/care-diagnostics.git"
   },
   "keywords": [
     "lims",
@@ -27,9 +28,9 @@
   "author": "Care Diagnostics",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Guptajinx/care-digonistcs/issues"
+    "url": "https://github.com/Raj-3200/care-diagnostics/issues"
   },
-  "homepage": "https://github.com/Guptajinx/care-digonistcs#readme",
+  "homepage": "https://github.com/Raj-3200/care-diagnostics#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
     "@prisma/client": "^6.0.0",

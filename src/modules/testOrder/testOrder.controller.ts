@@ -9,6 +9,7 @@ import {
   BulkCreateTestOrderInput,
   BulkCreateByIdsInput,
 } from './testOrder.validators.js';
+import { UnauthorizedError } from '../../shared/errors/AppError.js';
 
 /**
  * Create a test order
@@ -26,7 +27,7 @@ export const createTestOrder = async (
     const body = req.body as CreateTestOrderInput;
 
     if (!req.user) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedError('User not authenticated');
     }
 
     const testOrder = await testOrderService.createTestOrder(body, req.user.userId);
@@ -53,14 +54,10 @@ export const bulkCreateTestOrders = async (
     const body = req.body as BulkCreateTestOrderInput;
 
     if (!req.user) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedError('User not authenticated');
     }
 
-    const testOrders = await testOrderService.bulkCreateTestOrders(
-      visitId,
-      body,
-      req.user.userId
-    );
+    const testOrders = await testOrderService.bulkCreateTestOrders(visitId, body, req.user.userId);
     sendSuccess(res, testOrders, StatusCodes.CREATED);
   } catch (error) {
     next(error);
@@ -83,10 +80,13 @@ export const bulkCreateByIds = async (
     const body = req.body as BulkCreateByIdsInput;
 
     if (!req.user) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedError('User not authenticated');
     }
 
-    const tests = body.testIds.map((testId) => ({ testId }));
+    const tests = body.testIds.map((testId) => ({
+      testId,
+      priority: 'NORMAL' as const,
+    }));
     const testOrders = await testOrderService.bulkCreateTestOrders(
       body.visitId,
       tests,
@@ -155,14 +155,15 @@ export const getAllTestOrders = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { page, limit } = req.query as any;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 30;
 
     const { testOrders, total } = await testOrderService.getAllTestOrders({
-      page: Number(page) || 1,
-      limit: Number(limit) || 30,
+      page,
+      limit,
     });
 
-    sendPaginated(res, testOrders, Number(page) || 1, Number(limit) || 30, total);
+    sendPaginated(res, testOrders, page, limit, total);
   } catch (error) {
     next(error);
   }

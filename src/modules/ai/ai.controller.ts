@@ -42,11 +42,7 @@ export const chat = async (
  *
  * Access: All authenticated staff
  */
-export const resetChat = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
+export const resetChat = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
   try {
     const { conversationId } = req.body as { conversationId?: string };
 

@@ -8,17 +8,14 @@ import { CreatePatientInput, UpdatePatientInput } from './patient.validators.js'
 
 /**
  * Register a new patient with auto-generated MRN
- * 
+ *
  * This is a critical operation in the LIMS workflow:
  * - Called by receptionist at patient intake
  * - Must check for duplicates (phone, email if provided)
  * - Generates unique MRN
  * - Creates audit trail for compliance
  */
-export const registerPatient = async (
-  data: CreatePatientInput,
-  registeredByUserId: string,
-): Promise<any> => {
+export const registerPatient = async (data: CreatePatientInput, registeredByUserId: string) => {
   // Check for existing patient with same phone
   const existingByPhone = await prisma.patient.findFirst({
     where: { phone: data.phone, deletedAt: null },
@@ -109,7 +106,7 @@ export const getPatientByMRN = async (mrn: string) => {
  */
 export const searchPatients = async (
   pagination: PaginationParams,
-  filters?: { searchTerm?: string }
+  filters?: { searchTerm?: string },
 ) => {
   return patientRepository.findAll(pagination, filters);
 };
@@ -123,7 +120,7 @@ export const updatePatient = async (
   patientId: string,
   data: UpdatePatientInput,
   updatedByUserId: string,
-  _skipAudit = false // For specific scenarios where audit is not needed
+  _skipAudit = false, // For specific scenarios where audit is not needed
 ) => {
   // Verify patient exists
   const existingPatient = await patientRepository.findById(patientId);
@@ -154,7 +151,21 @@ export const updatePatient = async (
   }
 
   // Prepare update data (convert dateOfBirth if provided)
-  const updateData: any = { ...data };
+  const updateData: {
+    firstName?: string;
+    lastName?: string;
+    dateOfBirth?: Date;
+    gender?: UpdatePatientInput['gender'];
+    phone?: string;
+    email?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    pincode?: string | null;
+    bloodGroup?: string | null;
+    emergencyContactName?: string | null;
+    emergencyContactPhone?: string | null;
+  } = { ...data, dateOfBirth: undefined };
   if (data.dateOfBirth) {
     updateData.dateOfBirth = new Date(data.dateOfBirth);
   }
@@ -197,7 +208,7 @@ export const deletePatient = async (patientId: string, deletedByUserId: string) 
 
   if (activeVisits > 0) {
     throw new ConflictError(
-      'Cannot delete patient with active visits. Please close or cancel all visits first.'
+      'Cannot delete patient with active visits. Please close or cancel all visits first.',
     );
   }
 

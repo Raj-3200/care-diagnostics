@@ -3,7 +3,11 @@ import { StatusCodes } from 'http-status-codes';
 import * as patientService from './patient.service.js';
 import { sendSuccess, sendPaginated } from '../../shared/utils/apiResponse.js';
 import { AuthenticatedRequest } from '../../shared/types/auth.types.js';
-import { CreatePatientInput, UpdatePatientInput, SearchPatientInput } from './patient.validators.js';
+import {
+  CreatePatientInput,
+  UpdatePatientInput,
+  SearchPatientInput,
+} from './patient.validators.js';
 
 /**
  * Register a new patient
@@ -45,11 +49,11 @@ export const searchPatients = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { searchTerm, page, limit } = req.query as any as SearchPatientInput;
+    const { searchTerm, page, limit } = req.query as unknown as SearchPatientInput;
 
     const { patients, total } = await patientService.searchPatients(
       { page, limit },
-      { searchTerm }
+      { searchTerm },
     );
 
     sendPaginated(res, patients, page, limit, total);

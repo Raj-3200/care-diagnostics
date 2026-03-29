@@ -38,10 +38,7 @@ const generateVisitNumber = async (): Promise<string> => {
  * This is called when patient arrives at the lab for testing
  * Each visit can have multiple tests ordered
  */
-export const createVisit = async (
-  data: CreateVisitInput,
-  createdByUserId: string
-): Promise<any> => {
+export const createVisit = async (data: CreateVisitInput, createdByUserId: string) => {
   // Verify patient exists
   const patient = await prisma.patient.findUnique({
     where: { id: data.patientId, deletedAt: null },
@@ -130,7 +127,7 @@ export const getPatientVisits = async (patientId: string, pagination: Pagination
  */
 export const getAllVisits = async (
   pagination: PaginationParams,
-  filters?: { status?: VisitStatus; patientId?: string }
+  filters?: { status?: VisitStatus; patientId?: string },
 ) => {
   return visitRepository.findAll(pagination, filters);
 };
@@ -143,7 +140,7 @@ export const getAllVisits = async (
 export const updateVisitStatus = async (
   visitId: string,
   newStatus: VisitStatus,
-  updatedByUserId: string
+  updatedByUserId: string,
 ) => {
   // Verify visit exists
   const existingVisit = await visitRepository.findById(visitId);
@@ -153,10 +150,7 @@ export const updateVisitStatus = async (
 
   // Prevent state machine violations (simple check)
   const validTransitions: Record<VisitStatus, VisitStatus[]> = {
-    [VisitStatus.REGISTERED]: [
-      VisitStatus.SAMPLES_COLLECTED,
-      VisitStatus.CANCELLED,
-    ],
+    [VisitStatus.REGISTERED]: [VisitStatus.SAMPLES_COLLECTED, VisitStatus.CANCELLED],
     [VisitStatus.SAMPLES_COLLECTED]: [VisitStatus.IN_PROGRESS, VisitStatus.CANCELLED],
     [VisitStatus.IN_PROGRESS]: [VisitStatus.COMPLETED, VisitStatus.CANCELLED],
     [VisitStatus.COMPLETED]: [],
@@ -167,9 +161,7 @@ export const updateVisitStatus = async (
     existingVisit.status !== newStatus &&
     !validTransitions[existingVisit.status as VisitStatus].includes(newStatus)
   ) {
-    throw new ConflictError(
-      `Cannot transition from ${existingVisit.status} to ${newStatus}`
-    );
+    throw new ConflictError(`Cannot transition from ${existingVisit.status} to ${newStatus}`);
   }
 
   // Update status
@@ -196,7 +188,7 @@ export const updateVisitStatus = async (
 export const updateVisit = async (
   visitId: string,
   data: UpdateVisitInput,
-  updatedByUserId: string
+  updatedByUserId: string,
 ) => {
   // Verify visit exists
   const existingVisit = await visitRepository.findById(visitId);
@@ -205,9 +197,12 @@ export const updateVisit = async (
   }
 
   // Prepare update data
-  const updateData: any = { ...data };
-  if (data.notes === null) {
-    updateData.notes = undefined;
+  const updateData: { notes?: string; status?: VisitStatus } = {};
+  if (data.notes !== undefined && data.notes !== null) {
+    updateData.notes = data.notes;
+  }
+  if (data.status !== undefined) {
+    updateData.status = data.status;
   }
 
   // Update visit
@@ -246,7 +241,7 @@ export const deleteVisit = async (visitId: string, deletedByUserId: string) => {
 
   if (testOrderCount > 0) {
     throw new ConflictError(
-      'Cannot delete visit with test orders. Please cancel test orders first.'
+      'Cannot delete visit with test orders. Please cancel test orders first.',
     );
   }
 

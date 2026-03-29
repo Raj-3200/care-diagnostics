@@ -1,11 +1,7 @@
 import * as invoiceRepository from './invoice.repository.js';
 import * as visitRepository from '../visit/visit.repository.js';
 import { prisma } from '../../config/database.js';
-import {
-  NotFoundError,
-  ConflictError,
-  ValidationError,
-} from '../../shared/errors/AppError.js';
+import { NotFoundError, ConflictError, ValidationError } from '../../shared/errors/AppError.js';
 import { InvoiceStatus, PaymentMethod } from '@prisma/client';
 
 // Auto-generate invoice number: CD-INV-YYYYMMDD-XXXX
@@ -62,9 +58,7 @@ export const createInvoice = async (
   });
 
   if (testOrders.length === 0) {
-    throw new ValidationError(
-      'Cannot create invoice: no test orders found for this visit',
-    );
+    throw new ValidationError('Cannot create invoice: no test orders found for this visit');
   }
 
   const totalAmount = testOrders.reduce(
@@ -171,13 +165,8 @@ export const recordPayment = async (
     throw new NotFoundError('Invoice not found');
   }
 
-  if (
-    invoice.status === InvoiceStatus.CANCELLED ||
-    invoice.status === InvoiceStatus.REFUNDED
-  ) {
-    throw new ValidationError(
-      `Cannot record payment for ${invoice.status} invoice`,
-    );
+  if (invoice.status === InvoiceStatus.CANCELLED || invoice.status === InvoiceStatus.REFUNDED) {
+    throw new ValidationError(`Cannot record payment for ${invoice.status} invoice`);
   }
 
   const currentPaid = parseFloat(invoice.paidAmount.toString());
@@ -185,7 +174,7 @@ export const recordPayment = async (
 
   if (amount > parseFloat(invoice.dueAmount.toString())) {
     throw new ValidationError(
-      `Payment amount (${amount}) exceeds due amount (${invoice.dueAmount})`,
+      `Payment amount (${amount}) exceeds due amount (${invoice.dueAmount.toString()})`,
     );
   }
 
@@ -208,7 +197,13 @@ export const recordPayment = async (
       entity: 'Invoice',
       entityId: id,
       oldValue: { paidAmount: currentPaid, dueAmount: invoice.dueAmount, status: invoice.status },
-      newValue: { paidAmount: newPaid, dueAmount: newDue, status: newStatus, paymentMethod, amount },
+      newValue: {
+        paidAmount: newPaid,
+        dueAmount: newDue,
+        status: newStatus,
+        paymentMethod,
+        amount,
+      },
     },
   });
 
@@ -230,9 +225,7 @@ export const applyDiscount = async (
   }
 
   if (invoice.status !== InvoiceStatus.PENDING) {
-    throw new ValidationError(
-      'Discount can only be applied to PENDING invoices',
-    );
+    throw new ValidationError('Discount can only be applied to PENDING invoices');
   }
 
   const totalAmount = parseFloat(invoice.totalAmount.toString());
@@ -272,20 +265,13 @@ export const applyDiscount = async (
 /**
  * Cancel an invoice (only PENDING or PARTIAL)
  */
-export const cancelInvoice = async (
-  id: string,
-  reason: string,
-  userId: string,
-) => {
+export const cancelInvoice = async (id: string, reason: string, userId: string) => {
   const invoice = await invoiceRepository.findById(id);
   if (!invoice) {
     throw new NotFoundError('Invoice not found');
   }
 
-  if (
-    invoice.status !== InvoiceStatus.PENDING &&
-    invoice.status !== InvoiceStatus.PARTIAL
-  ) {
+  if (invoice.status !== InvoiceStatus.PENDING && invoice.status !== InvoiceStatus.PARTIAL) {
     throw new ValidationError(
       `Cannot cancel invoice in ${invoice.status} status. Must be PENDING or PARTIAL.`,
     );
@@ -313,20 +299,13 @@ export const cancelInvoice = async (
 /**
  * Refund an invoice (only PAID or PARTIAL)
  */
-export const refundInvoice = async (
-  id: string,
-  reason: string,
-  userId: string,
-) => {
+export const refundInvoice = async (id: string, reason: string, userId: string) => {
   const invoice = await invoiceRepository.findById(id);
   if (!invoice) {
     throw new NotFoundError('Invoice not found');
   }
 
-  if (
-    invoice.status !== InvoiceStatus.PAID &&
-    invoice.status !== InvoiceStatus.PARTIAL
-  ) {
+  if (invoice.status !== InvoiceStatus.PAID && invoice.status !== InvoiceStatus.PARTIAL) {
     throw new ValidationError(
       `Cannot refund invoice in ${invoice.status} status. Must be PAID or PARTIAL.`,
     );
@@ -365,9 +344,7 @@ export const deleteInvoice = async (id: string, userId: string) => {
   }
 
   if (invoice.status !== InvoiceStatus.PENDING) {
-    throw new ValidationError(
-      'Cannot delete invoice that is not in PENDING status',
-    );
+    throw new ValidationError('Cannot delete invoice that is not in PENDING status');
   }
 
   await invoiceRepository.softDelete(id);

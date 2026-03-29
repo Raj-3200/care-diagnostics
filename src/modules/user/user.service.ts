@@ -70,17 +70,14 @@ export const updateUser = async (id: string, data: UpdateUserInput, updatedByUse
 
   // Create audit log
   if (updatedByUserId) {
-    // Strip sensitive fields from audit log data
-    const { password: _oldPw, ...safeOldValue } = existingUser as any;
-    const { password: _newPw, ...safeNewValue } = user as any;
     await prisma.auditLog.create({
       data: {
         userId: updatedByUserId,
         action: CONSTANTS.AUDIT_ACTIONS.USER_UPDATED,
         entity: 'User',
         entityId: user.id,
-        oldValue: safeOldValue,
-        newValue: safeNewValue,
+        oldValue: { id: existingUser.id, email: existingUser.email, role: existingUser.role },
+        newValue: { id: user.id, email: user.email, role: user.role },
       },
     });
   }
@@ -100,15 +97,13 @@ export const deleteUser = async (id: string, deletedByUserId?: string) => {
 
   // Create audit log
   if (deletedByUserId) {
-    // Strip sensitive fields from audit log data
-    const { password: _pw, ...safeOldValue } = existingUser as any;
     await prisma.auditLog.create({
       data: {
         userId: deletedByUserId,
         action: CONSTANTS.AUDIT_ACTIONS.USER_DELETED,
         entity: 'User',
         entityId: id,
-        oldValue: safeOldValue,
+        oldValue: { id: existingUser.id, email: existingUser.email, role: existingUser.role },
       },
     });
   }

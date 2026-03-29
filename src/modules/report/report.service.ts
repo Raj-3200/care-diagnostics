@@ -2,11 +2,7 @@ import * as reportRepository from './report.repository.js';
 import * as visitRepository from '../visit/visit.repository.js';
 import { prisma } from '../../config/database.js';
 import { CONSTANTS } from '../../config/constants.js';
-import {
-  NotFoundError,
-  ConflictError,
-  ValidationError,
-} from '../../shared/errors/AppError.js';
+import { NotFoundError, ConflictError, ValidationError } from '../../shared/errors/AppError.js';
 import { ReportStatus, ResultStatus } from '@prisma/client';
 
 // Auto-generate report number: CD-RPT-YYYYMMDD-XXXX
@@ -36,11 +32,7 @@ const generateReportNumber = async (): Promise<string> => {
 /**
  * Create a new report for a visit
  */
-export const createReport = async (
-  visitId: string,
-  notes: string | undefined,
-  userId: string,
-) => {
+export const createReport = async (visitId: string, notes: string | undefined, userId: string) => {
   // Validate visit exists
   const visit = await visitRepository.findById(visitId);
   if (!visit) {
@@ -142,7 +134,9 @@ export const generateReport = async (
 
   // Ensure test orders with results all have them verified
   const testOrders = report.visit.testOrders;
-  const ordersWithResults = testOrders.filter((to) => to.result);
+  const ordersWithResults = testOrders.filter(
+    (to): to is typeof to & { result: NonNullable<typeof to.result> } => to.result !== null,
+  );
   const unverifiedResults = ordersWithResults.filter(
     (to) => to.result.status !== ResultStatus.VERIFIED,
   );
@@ -159,36 +153,38 @@ export const generateReport = async (
     );
   }
 
-  const updated = await reportRepository.update(id, {
-    status: ReportStatus.GENERATED,
-    fileUrl: data.fileUrl ?? null,
-    generatedAt: new Date(),
-    notes: data.notes ?? report.notes,
-  });
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.report.update({
+      where: { id },
+      data: {
+        status: ReportStatus.GENERATED,
+        fileUrl: data.fileUrl ?? null,
+        generatedAt: new Date(),
+        notes: data.notes ?? report.notes,
+      },
+      include: reportRepository.reportIncludes,
+    });
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: CONSTANTS.AUDIT_ACTIONS.REPORT_GENERATED,
-      entity: 'Report',
-      entityId: id,
-      oldValue: { status: report.status },
-      newValue: { status: ReportStatus.GENERATED },
-    },
-  });
+    await tx.auditLog.create({
+      data: {
+        userId,
+        action: CONSTANTS.AUDIT_ACTIONS.REPORT_GENERATED,
+        entity: 'Report',
+        entityId: id,
+        oldValue: { status: report.status },
+        newValue: { status: ReportStatus.GENERATED },
+      },
+    });
 
-  return updated;
+    return updated;
+  });
 };
 
 /**
  * Approve report — moves from GENERATED → APPROVED
  * Only pathologist can approve
  */
-export const approveReport = async (
-  id: string,
-  notes: string | undefined,
-  userId: string,
-) => {
+export const approveReport = async (id: string, notes: string | undefined, userId: string) => {
   const report = await reportRepository.findById(id);
   if (!report) {
     throw new NotFoundError('Report not found');
@@ -200,35 +196,37 @@ export const approveReport = async (
     );
   }
 
-  const updated = await reportRepository.update(id, {
-    status: ReportStatus.APPROVED,
-    approvedById: userId,
-    approvedAt: new Date(),
-    notes: notes ?? report.notes,
-  });
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.report.update({
+      where: { id },
+      data: {
+        status: ReportStatus.APPROVED,
+        approvedById: userId,
+        approvedAt: new Date(),
+        notes: notes ?? report.notes,
+      },
+      include: reportRepository.reportIncludes,
+    });
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'REPORT_APPROVED',
-      entity: 'Report',
-      entityId: id,
-      oldValue: { status: report.status },
-      newValue: { status: ReportStatus.APPROVED, approvedById: userId },
-    },
-  });
+    await tx.auditLog.create({
+      data: {
+        userId,
+        action: CONSTANTS.AUDIT_ACTIONS.REPORT_APPROVED,
+        entity: 'Report',
+        entityId: id,
+        oldValue: { status: report.status },
+        newValue: { status: ReportStatus.APPROVED, approvedById: userId },
+      },
+    });
 
-  return updated;
+    return updated;
+  });
 };
 
 /**
  * Dispatch report — moves from APPROVED → DISPATCHED
  */
-export const dispatchReport = async (
-  id: string,
-  notes: string | undefined,
-  userId: string,
-) => {
+export const dispatchReport = async (id: string, notes: string | undefined, userId: string) => {
   const report = await reportRepository.findById(id);
   if (!report) {
     throw new NotFoundError('Report not found');
@@ -240,23 +238,29 @@ export const dispatchReport = async (
     );
   }
 
-  const updated = await reportRepository.update(id, {
-    status: ReportStatus.DISPATCHED,
-    notes: notes ?? report.notes,
-  });
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.report.update({
+      where: { id },
+      data: {
+        status: ReportStatus.DISPATCHED,
+        notes: notes ?? report.notes,
+      },
+      include: reportRepository.reportIncludes,
+    });
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'REPORT_DISPATCHED',
-      entity: 'Report',
-      entityId: id,
-      oldValue: { status: report.status },
-      newValue: { status: ReportStatus.DISPATCHED },
-    },
-  });
+    await tx.auditLog.create({
+      data: {
+        userId,
+        action: CONSTANTS.AUDIT_ACTIONS.REPORT_DISPATCHED,
+        entity: 'Report',
+        entityId: id,
+        oldValue: { status: report.status },
+        newValue: { status: ReportStatus.DISPATCHED },
+      },
+    });
 
-  return updated;
+    return updated;
+  });
 };
 
 /**
@@ -279,7 +283,7 @@ export const deleteReport = async (id: string, userId: string) => {
   await prisma.auditLog.create({
     data: {
       userId,
-      action: 'REPORT_DELETED',
+      action: CONSTANTS.AUDIT_ACTIONS.REPORT_DELETED,
       entity: 'Report',
       entityId: id,
       oldValue: { reportNumber: report.reportNumber, status: report.status },

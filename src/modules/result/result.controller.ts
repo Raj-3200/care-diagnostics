@@ -90,14 +90,17 @@ export const listResults = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { status, visitId, page, limit } = req.query as any;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 30;
+    const status = req.query.status as ResultStatus | undefined;
+    const visitId = req.query.visitId as string | undefined;
 
     const { results, total } = await resultService.listResults(
-      { page: Number(page) || 1, limit: Number(limit) || 30 },
-      { status: status as ResultStatus, visitId }
+      { page, limit },
+      { status, visitId },
     );
 
-    sendPaginated(res, results, Number(page) || 1, Number(limit) || 30, total);
+    sendPaginated(res, results, page, limit, total);
   } catch (error) {
     next(error);
   }

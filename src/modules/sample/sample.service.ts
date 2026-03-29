@@ -16,7 +16,7 @@ import crypto from 'crypto';
  * Create a sample (initialize sample collection task)
  * Called when a lab tech is ready to collect a sample for a test order
  */
-export const createSample = async (data: CreateSampleInput): Promise<any> => {
+export const createSample = async (data: CreateSampleInput) => {
   // Verify test order exist and doesn't already have a sample
   const testOrder = await prisma.testOrder.findUnique({
     where: { id: data.testOrderId, deletedAt: null },
@@ -134,9 +134,7 @@ export const receiveInLab = async (sampleId: string) => {
   }
 
   if (sample.status !== SampleStatus.COLLECTED) {
-    throw new ConflictError(
-      `Cannot receive sample in ${sample.status} status. Must be COLLECTED.`
-    );
+    throw new ConflictError(`Cannot receive sample in ${sample.status} status. Must be COLLECTED.`);
   }
 
   const updated = await sampleRepository.update(sampleId, {
@@ -157,39 +155,40 @@ export const markProcessed = async (sampleId: string) => {
   }
 
   if (sample.status !== SampleStatus.IN_LAB) {
-    throw new ConflictError(
-      `Cannot process sample in ${sample.status} status. Must be IN_LAB.`
-    );
+    throw new ConflictError(`Cannot process sample in ${sample.status} status. Must be IN_LAB.`);
   }
 
   // Use a transaction to update sample + create result atomically
-  const updated = await prisma.$transaction(async (tx) => {
-    const updatedSample = await tx.sample.update({
-      where: { id: sampleId, deletedAt: null },
-      data: { status: SampleStatus.PROCESSED },
-      include: {
-        testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-        collectedBy: { select: { id: true, firstName: true, lastName: true } },
-      },
-    });
-
-    // Auto-create a PENDING result for the test order (if not already existing)
-    const existingResult = await tx.result.findFirst({
-      where: { testOrderId: updatedSample.testOrderId, deletedAt: null },
-    });
-
-    if (!existingResult) {
-      await tx.result.create({
-        data: {
-          testOrderId: updatedSample.testOrderId,
-          value: '',
-          status: 'PENDING',
+  const updated = await prisma.$transaction(
+    async (tx) => {
+      const updatedSample = await tx.sample.update({
+        where: { id: sampleId, deletedAt: null },
+        data: { status: SampleStatus.PROCESSED },
+        include: {
+          testOrder: { include: { test: true, visit: { include: { patient: true } } } },
+          collectedBy: { select: { id: true, firstName: true, lastName: true } },
         },
       });
-    }
 
-    return updatedSample;
-  }, { timeout: 15000 });
+      // Auto-create a PENDING result for the test order (if not already existing)
+      const existingResult = await tx.result.findFirst({
+        where: { testOrderId: updatedSample.testOrderId, deletedAt: null },
+      });
+
+      if (!existingResult) {
+        await tx.result.create({
+          data: {
+            testOrderId: updatedSample.testOrderId,
+            value: '',
+            status: 'PENDING',
+          },
+        });
+      }
+
+      return updatedSample;
+    },
+    { timeout: 15000 },
+  );
 
   return updated;
 };
@@ -199,7 +198,7 @@ export const markProcessed = async (sampleId: string) => {
  */
 export const listSamples = async (
   pagination: PaginationParams,
-  filters?: { status?: SampleStatus }
+  filters?: { status?: SampleStatus },
 ) => {
   return sampleRepository.findAll(pagination, filters);
 };
@@ -211,7 +210,7 @@ export const listSamples = async (
 export const recordSampleCollection = async (
   sampleId: string,
   data: RecordSampleCollectionInput,
-  recordedByUserId: string
+  recordedByUserId: string,
 ) => {
   // Verify sample exists
   const existingSample = await sampleRepository.findById(sampleId);
@@ -222,7 +221,7 @@ export const recordSampleCollection = async (
   // Check that sample is in correct state for collection
   if (existingSample.status !== SampleStatus.PENDING_COLLECTION) {
     throw new ConflictError(
-      `Cannot record collection for sample in ${existingSample.status} status`
+      `Cannot record collection for sample in ${existingSample.status} status`,
     );
   }
 
@@ -258,7 +257,7 @@ export const recordSampleCollection = async (
 export const rejectSample = async (
   sampleId: string,
   data: RejectSampleInput,
-  rejectedByUserId: string
+  rejectedByUserId: string,
 ) => {
   // Verify sample exists
   const existingSample = await sampleRepository.findById(sampleId);
@@ -306,7 +305,7 @@ export const rejectSample = async (
 export const updateSampleStatus = async (
   sampleId: string,
   data: UpdateSampleStatusInput,
-  updatedByUserId: string
+  updatedByUserId: string,
 ) => {
   // Verify sample exists
   const existingSample = await sampleRepository.findById(sampleId);
@@ -328,7 +327,7 @@ export const updateSampleStatus = async (
     !validTransitions[existingSample.status as SampleStatus].includes(data.status)
   ) {
     throw new ConflictError(
-      `Cannot transition sample from ${existingSample.status} to ${data.status}`
+      `Cannot transition sample from ${existingSample.status} to ${data.status}`,
     );
   }
 

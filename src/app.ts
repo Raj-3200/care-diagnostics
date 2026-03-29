@@ -21,14 +21,17 @@ import { NotFoundError } from './shared/errors/AppError.js';
 
 const app = express();
 
+const allowedOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim());
+const allowAllOrigins = allowedOrigins.includes('*');
+
 // Security middleware
 app.use(helmet());
 
 // CORS
 app.use(
   cors({
-    origin: env.CORS_ORIGIN.split(',').map(o => o.trim()),
-    credentials: true,
+    origin: allowAllOrigins ? true : allowedOrigins,
+    credentials: !allowAllOrigins,
   }),
 );
 
@@ -38,8 +41,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: env.RATE_LIMIT_WINDOW_MS,
+  max: env.RATE_LIMIT_MAX,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,

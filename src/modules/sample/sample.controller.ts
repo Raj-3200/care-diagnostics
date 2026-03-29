@@ -181,14 +181,13 @@ export const listSamples = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { status, page, limit } = req.query as any;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 30;
+    const status = req.query.status as SampleStatus | undefined;
 
-    const { samples, total } = await sampleService.listSamples(
-      { page: Number(page) || 1, limit: Number(limit) || 30 },
-      { status: status as SampleStatus }
-    );
+    const { samples, total } = await sampleService.listSamples({ page, limit }, { status });
 
-    sendPaginated(res, samples, Number(page) || 1, Number(limit) || 30, total);
+    sendPaginated(res, samples, page, limit, total);
   } catch (error) {
     next(error);
   }
@@ -214,11 +213,7 @@ export const recordSampleCollection = async (
       throw new Error('User not authenticated');
     }
 
-    const sample = await sampleService.recordSampleCollection(
-      id,
-      body,
-      req.user.userId
-    );
+    const sample = await sampleService.recordSampleCollection(id, body, req.user.userId);
     sendSuccess(res, sample, StatusCodes.OK);
   } catch (error) {
     next(error);

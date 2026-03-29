@@ -18,13 +18,16 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Graceful disconnect
-const disconnect = async () => {
-  await prisma.$disconnect();
-  console.log('🔌 Database connection closed');
-};
+let disconnectPromise: Promise<void> | null = null;
 
-process.on('beforeExit', () => {
-  void disconnect();
-});
+const disconnect = async () => {
+  if (!disconnectPromise) {
+    disconnectPromise = prisma.$disconnect().then(() => {
+      console.log('🔌 Database connection closed');
+    });
+  }
+
+  await disconnectPromise;
+};
 
 export { prisma, disconnect };

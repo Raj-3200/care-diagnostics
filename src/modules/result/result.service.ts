@@ -16,7 +16,7 @@ import { ResultStatus } from '@prisma/client';
  * Create a result placeholder for a test order
  * This initializes the result entry workflow
  */
-export const createResult = async (data: CreateResultInput): Promise<any> => {
+export const createResult = async (data: CreateResultInput) => {
   // Verify test order exists
   const testOrder = await prisma.testOrder.findUnique({
     where: { id: data.testOrderId, deletedAt: null },
@@ -69,7 +69,7 @@ export const getResultByTestOrder = async (testOrderId: string) => {
  */
 export const listResults = async (
   pagination: PaginationParams,
-  filters?: { status?: ResultStatus; visitId?: string }
+  filters?: { status?: ResultStatus; visitId?: string },
 ) => {
   return resultRepository.findAll(pagination, filters);
 };
@@ -82,7 +82,7 @@ export const listResults = async (
 export const enterResult = async (
   resultId: string,
   data: EnterResultInput,
-  enteredByUserId: string
+  enteredByUserId: string,
 ) => {
   // Verify result exists
   const existingResult = await resultRepository.findById(resultId);
@@ -92,9 +92,7 @@ export const enterResult = async (
 
   // Check that result is in initial state
   if (existingResult.status !== ResultStatus.PENDING) {
-    throw new ConflictError(
-      `Cannot enter result for result in ${existingResult.status} status`
-    );
+    throw new ConflictError(`Cannot enter result for result in ${existingResult.status} status`);
   }
 
   // Update result with values
@@ -135,7 +133,7 @@ export const enterResult = async (
 export const verifyResult = async (
   resultId: string,
   data: VerifyResultInput,
-  verifiedByUserId: string
+  verifiedByUserId: string,
 ) => {
   // Verify result exists
   const existingResult = await resultRepository.findById(resultId);
@@ -146,7 +144,7 @@ export const verifyResult = async (
   // Check that result is ENTERED and ready for verification
   if (existingResult.status !== ResultStatus.ENTERED) {
     throw new ConflictError(
-      `Cannot verify result in ${existingResult.status} status. Result must be ENTERED.`
+      `Cannot verify result in ${existingResult.status} status. Result must be ENTERED.`,
     );
   }
 
@@ -189,9 +187,9 @@ export const verifyResult = async (
         include: { result: true },
       });
 
-      const allVerified = testOrders.length > 0 && testOrders.every(
-        (to) => to.result && to.result.status === ResultStatus.VERIFIED
-      );
+      const allVerified =
+        testOrders.length > 0 &&
+        testOrders.every((to) => to.result && to.result.status === ResultStatus.VERIFIED);
 
       if (allVerified) {
         // Check if report already exists
@@ -237,7 +235,7 @@ export const verifyResult = async (
 export const rejectResult = async (
   resultId: string,
   data: RejectResultInput,
-  rejectedByUserId: string
+  rejectedByUserId: string,
 ) => {
   // Verify result exists
   const existingResult = await resultRepository.findById(resultId);
@@ -248,7 +246,7 @@ export const rejectResult = async (
   // Can only reject ENTERED results
   if (existingResult.status !== ResultStatus.ENTERED) {
     throw new ConflictError(
-      `Cannot reject result in ${existingResult.status} status. Only ENTERED results can be rejected.`
+      `Cannot reject result in ${existingResult.status} status. Only ENTERED results can be rejected.`,
     );
   }
 
@@ -289,7 +287,7 @@ export const rejectResult = async (
 export const reEnterResult = async (
   resultId: string,
   data: EnterResultInput,
-  enteredByUserId: string
+  enteredByUserId: string,
 ) => {
   // Verify result exists
   const existingResult = await resultRepository.findById(resultId);
@@ -300,7 +298,7 @@ export const reEnterResult = async (
   // Check that result is REJECTED
   if (existingResult.status !== ResultStatus.REJECTED) {
     throw new ConflictError(
-      `Cannot re-enter result in ${existingResult.status} status. Only REJECTED results can be re-entered.`
+      `Cannot re-enter result in ${existingResult.status} status. Only REJECTED results can be re-entered.`,
     );
   }
 

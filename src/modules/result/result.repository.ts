@@ -1,41 +1,35 @@
 import { prisma } from '../../config/database.js';
-import { Result, ResultStatus } from '@prisma/client';
+import { ResultStatus, Prisma } from '@prisma/client';
 import { PaginationParams } from '../../shared/types/common.types.js';
 
-export type ResultWithRelations = Result & {
-  testOrder?: any;
-};
+const resultIncludes = {
+  testOrder: { include: { test: true, visit: { include: { patient: true } } } },
+  enteredBy: { select: { id: true, firstName: true, lastName: true } },
+  verifiedBy: { select: { id: true, firstName: true, lastName: true } },
+} as const;
 
-export const findById = async (id: string): Promise<ResultWithRelations | null> => {
+export const findById = async (id: string) => {
   return prisma.result.findUnique({
     where: { id, deletedAt: null },
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      enteredBy: { select: { id: true, firstName: true, lastName: true } },
-      verifiedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: resultIncludes,
   });
 };
 
-export const findByTestOrderId = async (testOrderId: string): Promise<ResultWithRelations | null> => {
+export const findByTestOrderId = async (testOrderId: string) => {
   return prisma.result.findUnique({
     where: { testOrderId, deletedAt: null },
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      enteredBy: { select: { id: true, firstName: true, lastName: true } },
-      verifiedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: resultIncludes,
   });
 };
 
 export const findAll = async (
   pagination: PaginationParams,
-  filters?: { status?: ResultStatus; visitId?: string }
-): Promise<{ results: ResultWithRelations[]; total: number }> => {
+  filters?: { status?: ResultStatus; visitId?: string },
+) => {
   const { page, limit } = pagination;
   const skip = (page - 1) * limit;
 
-  const whereClause: any = {
+  const whereClause: Prisma.ResultWhereInput = {
     deletedAt: null,
   };
 
@@ -50,11 +44,7 @@ export const findAll = async (
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
-      include: {
-        testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-        enteredBy: { select: { id: true, firstName: true, lastName: true } },
-        verifiedBy: { select: { id: true, firstName: true, lastName: true } },
-      },
+      include: resultIncludes,
     }),
     prisma.result.count({ where: whereClause }),
   ]);
@@ -62,20 +52,13 @@ export const findAll = async (
   return { results, total };
 };
 
-export const create = async (data: {
-  testOrderId: string;
-  value?: string;
-}): Promise<ResultWithRelations> => {
+export const create = async (data: { testOrderId: string; value?: string }) => {
   return prisma.result.create({
     data: {
       testOrderId: data.testOrderId,
       value: data.value || '',
     },
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      enteredBy: { select: { id: true, firstName: true, lastName: true } },
-      verifiedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: resultIncludes,
   });
 };
 
@@ -93,31 +76,20 @@ export const update = async (
     verifiedById?: string | null;
     verifiedAt?: Date | null;
     rejectionReason?: string | null;
-  }
-): Promise<ResultWithRelations> => {
+  },
+) => {
   return prisma.result.update({
     where: { id, deletedAt: null },
-    data: data as any,
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      enteredBy: { select: { id: true, firstName: true, lastName: true } },
-      verifiedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    data,
+    include: resultIncludes,
   });
 };
 
-export const updateStatus = async (
-  id: string,
-  status: ResultStatus
-): Promise<ResultWithRelations> => {
+export const updateStatus = async (id: string, status: ResultStatus) => {
   return prisma.result.update({
     where: { id, deletedAt: null },
     data: { status },
-    include: {
-      testOrder: { include: { test: true, visit: { include: { patient: true } } } },
-      enteredBy: { select: { id: true, firstName: true, lastName: true } },
-      verifiedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: resultIncludes,
   });
 };
 
