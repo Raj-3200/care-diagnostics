@@ -77,35 +77,42 @@ export function useWebSocket() {
       return;
     }
 
-    // Connect with credentials (cookies are sent)
-    const s = io(WS_URL, {
-      withCredentials: true,
-      transports: ['websocket', 'polling'],
-    });
+    // Connect with credentials (cookies are sent) — delay slightly to not block initial render
+    const timer = setTimeout(() => {
+      const s = io(WS_URL, {
+        withCredentials: true,
+        transports: ['websocket', 'polling'],
+        reconnectionDelay: 2000,
+        reconnectionAttempts: 5,
+      });
 
-    s.on('connect', () => {
-      console.log('[WS] Connected');
-    });
+      s.on('connect', () => {
+        console.log('[WS] Connected');
+      });
 
-    s.on('domain-event', handleDomainEvent);
-    s.on('notification', handleNotification);
+      s.on('domain-event', handleDomainEvent);
+      s.on('notification', handleNotification);
 
-    // Role-specific queue updates
-    s.on('queue-update', (data: { queue: string; count: number }) => {
-      queryClient.invalidateQueries({ queryKey: [data.queue] });
-    });
+      // Role-specific queue updates
+      s.on('queue-update', (data: { queue: string; count: number }) => {
+        queryClient.invalidateQueries({ queryKey: [data.queue] });
+      });
 
-    s.on('disconnect', (reason) => {
-      console.log('[WS] Disconnected:', reason);
-    });
+      s.on('disconnect', (reason) => {
+        console.log('[WS] Disconnected:', reason);
+      });
 
-    socketRef.current = s;
-    socket = s;
+      socketRef.current = s;
+      socket = s;
+    }, 1000);
 
     return () => {
-      s.disconnect();
-      socketRef.current = null;
-      socket = null;
+      clearTimeout(timer);
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        socket = null;
+      }
     };
   }, [isAuthenticated, user, handleDomainEvent, handleNotification, queryClient]);
 

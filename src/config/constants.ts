@@ -60,6 +60,6 @@ export const CONSTANTS = {
   },
   PASSWORD: {
     MIN_LENGTH: 8,
-    BCRYPT_ROUNDS: 12,
+    BCRYPT_ROUNDS: 10,
   },
 } as const;

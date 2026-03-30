@@ -51,25 +51,7 @@ export const login = async (
     throw new UnauthorizedError('Invalid email or password');
   }
 
-  // Update last login time
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLoginAt: new Date() },
-  });
-
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: user.id,
-      action: CONSTANTS.AUDIT_ACTIONS.USER_LOGIN,
-      entity: 'User',
-      entityId: user.id,
-      ipAddress,
-      userAgent,
-    },
-  });
-
-  // Generate tokens with tenantId
+  // Parallelize non-blocking DB writes for speed
   const tokenPayload: TokenPayload = {
     userId: user.id,
     email: user.email,
@@ -79,18 +61,34 @@ export const login = async (
 
   const accessToken = generateAccessToken(tokenPayload);
   const refreshTokenValue = generateRefreshToken(tokenPayload);
-
-  // Store hashed refresh token in DB for rotation
   const tokenHash = crypto.createHash('sha256').update(refreshTokenValue).digest('hex');
-  await prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      tokenHash,
-      deviceInfo: userAgent?.substring(0, 500),
-      ipAddress,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
+
+  // Fire all DB writes in parallel — none depend on each other
+  await Promise.all([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: CONSTANTS.AUDIT_ACTIONS.USER_LOGIN,
+        entity: 'User',
+        entityId: user.id,
+        ipAddress,
+        userAgent,
+      },
+    }),
+    prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        deviceInfo: userAgent?.substring(0, 500),
+        ipAddress,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    }),
+  ]);
 
   return {
     user: {

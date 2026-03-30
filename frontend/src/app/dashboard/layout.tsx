@@ -10,11 +10,14 @@ import { Activity } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, loadUser } = useAuthStore();
+  const { isAuthenticated, isLoading, loadUser, user } = useAuthStore();
 
   useEffect(() => {
-    loadUser();
-  }, [loadUser]);
+    // Only load user if we don't already have one
+    if (!user) {
+      loadUser();
+    }
+  }, [loadUser, user]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -30,8 +33,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         <div className="flex items-center gap-2">
           <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60" />
-          <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/40" style={{ animationDelay: '150ms' }} />
-          <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/20" style={{ animationDelay: '300ms' }} />
+          <div
+            className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/40"
+            style={{ animationDelay: '150ms' }}
+          />
+          <div
+            className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/20"
+            style={{ animationDelay: '300ms' }}
+          />
         </div>
       </div>
     );

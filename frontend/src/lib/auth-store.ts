@@ -13,7 +13,7 @@ interface AuthState {
   loadUser: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
   isAuthenticated: false,
@@ -34,6 +34,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   loadUser: async () => {
+    // Skip if already authenticated with user data
+    if (get().isAuthenticated && get().user) {
+      set({ isLoading: false });
+      return;
+    }
     try {
       // Cookie is sent automatically with withCredentials: true
       const { data } = await api.get<ApiResponse<User>>('/auth/me');
