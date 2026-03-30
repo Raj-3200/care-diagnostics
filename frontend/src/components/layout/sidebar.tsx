@@ -1,20 +1,39 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/auth-store';
 import { NAV_ITEMS } from '@/lib/constants';
+import api from '@/lib/api';
+import type { ApiResponse } from '@/types';
 import {
-  LayoutDashboard, Users, ClipboardList, FlaskConical,
-  FileText, TestTube, FileCheck, FileOutput, Receipt, Shield,
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  FlaskConical,
+  FileText,
+  TestTube,
+  FileCheck,
+  FileOutput,
+  Receipt,
+  Shield,
   Activity,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  LayoutDashboard, Users, ClipboardList, FlaskConical,
-  FileText, TestTube, FileCheck, FileOutput, Receipt, Shield,
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  FlaskConical,
+  FileText,
+  TestTube,
+  FileCheck,
+  FileOutput,
+  Receipt,
+  Shield,
 };
 
 // Group nav items into sections for visual clarity
@@ -26,13 +45,38 @@ const NAV_SECTIONS = [
   { label: 'Administration', items: ['Users'] },
 ];
 
+// Map nav labels to badge-count endpoints
+const BADGE_ENDPOINTS: Record<string, string> = {
+  Samples: '/samples?status=PENDING_COLLECTION&limit=1',
+  Results: '/results?status=PENDING&limit=1',
+  Reports: '/reports?status=PENDING&limit=1',
+  Invoices: '/invoices?status=PENDING&limit=1',
+};
+
 export function Sidebar() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
+  const [badges, setBadges] = useState<Record<string, number>>({});
 
-  const filteredItems = NAV_ITEMS.filter(
-    (item) => user && item.roles.includes(user.role),
-  );
+  useEffect(() => {
+    async function loadBadges() {
+      const entries = Object.entries(BADGE_ENDPOINTS);
+      const results = await Promise.allSettled(entries.map(([, url]) => api.get<ApiResponse>(url)));
+      const newBadges: Record<string, number> = {};
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          const count = r.value.data.meta?.total ?? 0;
+          if (count > 0) newBadges[entries[i][0]] = count;
+        }
+      });
+      setBadges(newBadges);
+    }
+    loadBadges();
+    const interval = setInterval(loadBadges, 60000); // refresh every 60s
+    return () => clearInterval(interval);
+  }, []);
+
+  const filteredItems = NAV_ITEMS.filter((item) => user && item.roles.includes(user.role));
 
   return (
     <aside className="hidden w-[260px] flex-shrink-0 border-r border-border/50 bg-white lg:flex lg:flex-col">
@@ -45,18 +89,14 @@ export function Sidebar() {
           <span className="text-[15px] font-semibold tracking-tight text-foreground">
             Care Diagnostics
           </span>
-          <span className="text-[11px] font-medium text-muted-foreground">
-            LIMS Platform
-          </span>
+          <span className="text-[11px] font-medium text-muted-foreground">LIMS Platform</span>
         </div>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin">
         {NAV_SECTIONS.map((section) => {
-          const sectionItems = filteredItems.filter((item) =>
-            section.items.includes(item.label)
-          );
+          const sectionItems = filteredItems.filter((item) => section.items.includes(item.label));
           if (sectionItems.length === 0) return null;
 
           return (
@@ -71,6 +111,7 @@ export function Sidebar() {
                     item.href === '/dashboard'
                       ? pathname === '/dashboard'
                       : pathname.startsWith(item.href);
+                  const badgeCount = badges[item.label];
 
                   return (
                     <Link
@@ -90,11 +131,25 @@ export function Sidebar() {
                           transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                         />
                       )}
-                      <Icon className={cn(
-                        'h-[18px] w-[18px] flex-shrink-0 transition-colors duration-150',
-                        isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
-                      )} />
-                      <span>{item.label}</span>
+                      <Icon
+                        className={cn(
+                          'h-[18px] w-[18px] flex-shrink-0 transition-colors duration-150',
+                          isActive
+                            ? 'text-primary'
+                            : 'text-muted-foreground/70 group-hover:text-foreground',
+                        )}
+                      />
+                      <span className="flex-1">{item.label}</span>
+                      {badgeCount !== undefined && badgeCount > 0 && (
+                        <span
+                          className={cn(
+                            'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none',
+                            isActive ? 'bg-primary text-white' : 'bg-amber-100 text-amber-700',
+                          )}
+                        >
+                          {badgeCount > 99 ? '99+' : badgeCount}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
@@ -116,9 +171,7 @@ export function Sidebar() {
             <p className="truncate text-[13px] font-medium text-foreground">
               {user?.firstName} {user?.lastName}
             </p>
-            <p className="truncate text-[11px] text-muted-foreground">
-              {user?.email}
-            </p>
+            <p className="truncate text-[11px] text-muted-foreground">{user?.email}</p>
           </div>
         </div>
       </div>

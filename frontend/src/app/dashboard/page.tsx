@@ -4,15 +4,34 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuthStore } from '@/lib/auth-store';
 import api from '@/lib/api';
-import type { ApiResponse } from '@/types';
+import type { ApiResponse, Visit } from '@/types';
 import {
-  Users, ClipboardList, TestTube, FileCheck, Receipt, Activity,
-  ArrowUpRight, TrendingUp,
+  Users,
+  ClipboardList,
+  TestTube,
+  FileCheck,
+  Receipt,
+  Activity,
+  ArrowUpRight,
+  TrendingUp,
+  Plus,
+  ArrowRight,
+  Clock,
+  UserPlus,
+  FlaskConical,
+  FileOutput,
+  Pipette,
+  CheckCircle2,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageTransition } from '@/components/shared/page-transition';
 import { StaggerContainer, StaggerItem, FadeIn } from '@/components/shared/animations';
+import { StatusBadge } from '@/components/shared/status-badge';
+import { VISIT_STATUS_LABELS, VISIT_STATUS_COLORS } from '@/lib/constants';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { format } from 'date-fns';
+import { motion } from 'framer-motion';
 
 interface DashboardStats {
   totalPatients: number;
@@ -23,31 +42,53 @@ interface DashboardStats {
   pendingInvoices: number;
 }
 
+// Workflow pipeline step
+interface PipelineStep {
+  label: string;
+  icon: React.ReactNode;
+  count: number;
+  color: string;
+  bgColor: string;
+  href: string;
+}
+
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadStats() {
       try {
-        const [patients, visits, samples, results, reports, invoices] = await Promise.allSettled([
-          api.get<ApiResponse>('/patients?limit=1'),
-          api.get<ApiResponse>('/visits?limit=1'),
-          api.get<ApiResponse>('/samples?status=PENDING_COLLECTION&limit=1'),
-          api.get<ApiResponse>('/results?status=PENDING&limit=1'),
-          api.get<ApiResponse>('/reports?status=PENDING&limit=1'),
-          api.get<ApiResponse>('/invoices?status=PENDING&limit=1'),
-        ]);
+        const [patients, visits, samples, results, reports, invoices, recentVisitsRes] =
+          await Promise.allSettled([
+            api.get<ApiResponse>('/patients?limit=1'),
+            api.get<ApiResponse>('/visits?limit=1'),
+            api.get<ApiResponse>('/samples?status=PENDING_COLLECTION&limit=1'),
+            api.get<ApiResponse>('/results?status=PENDING&limit=1'),
+            api.get<ApiResponse>('/reports?status=PENDING&limit=1'),
+            api.get<ApiResponse>('/invoices?status=PENDING&limit=1'),
+            api.get<ApiResponse<Visit[]>>('/visits?limit=5'),
+          ]);
 
         setStats({
-          totalPatients: patients.status === 'fulfilled' ? patients.value.data.meta?.total ?? 0 : 0,
-          todayVisits: visits.status === 'fulfilled' ? visits.value.data.meta?.total ?? 0 : 0,
-          pendingSamples: samples.status === 'fulfilled' ? samples.value.data.meta?.total ?? 0 : 0,
-          pendingResults: results.status === 'fulfilled' ? results.value.data.meta?.total ?? 0 : 0,
-          pendingReports: reports.status === 'fulfilled' ? reports.value.data.meta?.total ?? 0 : 0,
-          pendingInvoices: invoices.status === 'fulfilled' ? invoices.value.data.meta?.total ?? 0 : 0,
+          totalPatients:
+            patients.status === 'fulfilled' ? (patients.value.data.meta?.total ?? 0) : 0,
+          todayVisits: visits.status === 'fulfilled' ? (visits.value.data.meta?.total ?? 0) : 0,
+          pendingSamples:
+            samples.status === 'fulfilled' ? (samples.value.data.meta?.total ?? 0) : 0,
+          pendingResults:
+            results.status === 'fulfilled' ? (results.value.data.meta?.total ?? 0) : 0,
+          pendingReports:
+            reports.status === 'fulfilled' ? (reports.value.data.meta?.total ?? 0) : 0,
+          pendingInvoices:
+            invoices.status === 'fulfilled' ? (invoices.value.data.meta?.total ?? 0) : 0,
         });
+
+        if (recentVisitsRes.status === 'fulfilled' && recentVisitsRes.value.data.data) {
+          setRecentVisits(recentVisitsRes.value.data.data);
+        }
       } catch {
         // fail silently for stats
       } finally {
@@ -65,6 +106,7 @@ export default function DashboardPage() {
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       href: '/dashboard/patients',
+      trend: '+12%',
     },
     {
       label: 'Total Visits',
@@ -73,6 +115,7 @@ export default function DashboardPage() {
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50',
       href: '/dashboard/visits',
+      trend: '+8%',
     },
     {
       label: 'Pending Samples',
@@ -81,6 +124,7 @@ export default function DashboardPage() {
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
       href: '/dashboard/samples',
+      urgent: true,
     },
     {
       label: 'Pending Results',
@@ -89,6 +133,7 @@ export default function DashboardPage() {
       color: 'text-violet-600',
       bgColor: 'bg-violet-50',
       href: '/dashboard/results',
+      urgent: true,
     },
     {
       label: 'Pending Reports',
@@ -108,48 +153,235 @@ export default function DashboardPage() {
     },
   ];
 
-  const quickActions = [
-    { label: 'Register Patient', href: '/dashboard/patients/new', icon: Users },
-    { label: 'New Visit', href: '/dashboard/visits/new', icon: ClipboardList },
-    { label: 'View Reports', href: '/dashboard/reports', icon: Activity },
-    { label: 'Test Catalog', href: '/dashboard/tests', icon: TestTube },
+  const pipelineSteps: PipelineStep[] = [
+    {
+      label: 'Register',
+      icon: <UserPlus className="h-4 w-4" />,
+      count: stats?.totalPatients ?? 0,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      href: '/dashboard/patients/new',
+    },
+    {
+      label: 'Visits',
+      icon: <ClipboardList className="h-4 w-4" />,
+      count: stats?.todayVisits ?? 0,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-50',
+      href: '/dashboard/visits',
+    },
+    {
+      label: 'Samples',
+      icon: <Pipette className="h-4 w-4" />,
+      count: stats?.pendingSamples ?? 0,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50',
+      href: '/dashboard/samples',
+    },
+    {
+      label: 'Results',
+      icon: <FlaskConical className="h-4 w-4" />,
+      count: stats?.pendingResults ?? 0,
+      color: 'text-violet-600',
+      bgColor: 'bg-violet-50',
+      href: '/dashboard/results',
+    },
+    {
+      label: 'Reports',
+      icon: <FileOutput className="h-4 w-4" />,
+      count: stats?.pendingReports ?? 0,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50',
+      href: '/dashboard/reports',
+    },
+    {
+      label: 'Billing',
+      icon: <Receipt className="h-4 w-4" />,
+      count: stats?.pendingInvoices ?? 0,
+      color: 'text-rose-600',
+      bgColor: 'bg-rose-50',
+      href: '/dashboard/invoices',
+    },
   ];
+
+  // Role-based quick actions
+  const roleActions = {
+    ADMIN: [
+      {
+        label: 'Register Patient',
+        href: '/dashboard/patients/new',
+        icon: UserPlus,
+        desc: 'Add new patient record',
+      },
+      {
+        label: 'New Visit',
+        href: '/dashboard/visits/new',
+        icon: ClipboardList,
+        desc: 'Create a patient visit',
+      },
+      {
+        label: 'Test Catalog',
+        href: '/dashboard/tests',
+        icon: FlaskConical,
+        desc: 'Browse & manage tests',
+      },
+      { label: 'Manage Users', href: '/dashboard/users', icon: Users, desc: 'User administration' },
+    ],
+    RECEPTIONIST: [
+      {
+        label: 'Register Patient',
+        href: '/dashboard/patients/new',
+        icon: UserPlus,
+        desc: 'Add new patient record',
+      },
+      {
+        label: 'New Visit',
+        href: '/dashboard/visits/new',
+        icon: ClipboardList,
+        desc: 'Create a patient visit',
+      },
+      {
+        label: 'View Invoices',
+        href: '/dashboard/invoices',
+        icon: Receipt,
+        desc: 'Billing & payments',
+      },
+      {
+        label: 'View Reports',
+        href: '/dashboard/reports',
+        icon: FileOutput,
+        desc: 'Download reports',
+      },
+    ],
+    LAB_TECHNICIAN: [
+      {
+        label: 'Collect Samples',
+        href: '/dashboard/samples',
+        icon: Pipette,
+        desc: 'Pending sample collection',
+      },
+      {
+        label: 'Enter Results',
+        href: '/dashboard/results',
+        icon: FileCheck,
+        desc: 'Record test results',
+      },
+      {
+        label: 'View Orders',
+        href: '/dashboard/test-orders',
+        icon: FlaskConical,
+        desc: 'Pending test orders',
+      },
+      {
+        label: 'Generate Reports',
+        href: '/dashboard/reports',
+        icon: FileOutput,
+        desc: 'Create lab reports',
+      },
+    ],
+    PATHOLOGIST: [
+      {
+        label: 'Verify Results',
+        href: '/dashboard/results',
+        icon: CheckCircle2,
+        desc: 'Review & approve',
+      },
+      {
+        label: 'Approve Reports',
+        href: '/dashboard/reports',
+        icon: FileOutput,
+        desc: 'Sign off on reports',
+      },
+      {
+        label: 'View Samples',
+        href: '/dashboard/samples',
+        icon: TestTube,
+        desc: 'Track lab samples',
+      },
+      {
+        label: 'Test Orders',
+        href: '/dashboard/test-orders',
+        icon: FlaskConical,
+        desc: 'View test orders',
+      },
+    ],
+    PATIENT: [
+      {
+        label: 'View Reports',
+        href: '/dashboard/reports',
+        icon: FileOutput,
+        desc: 'Your lab reports',
+      },
+    ],
+  };
+
+  const quickActions = user ? roleActions[user.role] || roleActions.ADMIN : roleActions.ADMIN;
 
   return (
     <PageTransition>
       {/* Welcome Section */}
       <FadeIn>
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Welcome back, {user?.firstName}
-          </h1>
-          <p className="mt-1 text-[14px] text-muted-foreground">
-            Here&apos;s an overview of your laboratory operations today.
-          </p>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Welcome back, {user?.firstName} 👋
+            </h1>
+            <p className="mt-1 text-[14px] text-muted-foreground">
+              Here&apos;s an overview of your laboratory operations today.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard/patients/new">
+              <Button
+                size="sm"
+                className="h-9 gap-1.5 rounded-lg text-[13px] font-medium shadow-sm"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New Patient
+              </Button>
+            </Link>
+            <Link href="/dashboard/visits/new">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-1.5 rounded-lg border-border/50 text-[13px] font-medium"
+              >
+                <ClipboardList className="h-3.5 w-3.5" />
+                New Visit
+              </Button>
+            </Link>
+          </div>
         </div>
       </FadeIn>
 
       {/* Stat Cards Grid */}
-      <StaggerContainer className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <StaggerContainer className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {statCards.map((card) => (
           <StaggerItem key={card.label}>
             <Link href={card.href}>
-              <Card className="group relative overflow-hidden border-border/40 bg-white transition-all duration-200 hover:border-border/60 hover:shadow-sm">
+              <Card className="group relative overflow-hidden border-border/40 bg-white transition-all duration-200 hover:border-border/60 hover:shadow-md">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <p className="text-[13px] font-medium text-muted-foreground">
-                        {card.label}
-                      </p>
+                      <p className="text-[13px] font-medium text-muted-foreground">{card.label}</p>
                       {loading ? (
                         <Skeleton className="mt-2 h-8 w-20 rounded-md" />
                       ) : (
-                        <p className="mt-1 text-3xl font-bold tracking-tight text-foreground">
-                          {card.value ?? 0}
-                        </p>
+                        <div className="mt-1 flex items-baseline gap-2">
+                          <p className="text-3xl font-bold tracking-tight text-foreground">
+                            {card.value ?? 0}
+                          </p>
+                          {card.urgent && (card.value ?? 0) > 0 && (
+                            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                              Action needed
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.bgColor}`}>
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.bgColor} transition-transform duration-200 group-hover:scale-110`}
+                    >
                       <card.icon className={`h-5 w-5 ${card.color}`} />
                     </div>
                   </div>
@@ -164,33 +396,171 @@ export default function DashboardPage() {
         ))}
       </StaggerContainer>
 
-      {/* Quick Actions */}
-      <FadeIn delay={0.3}>
-        <div className="mb-6">
-          <h2 className="mb-3 text-[15px] font-semibold text-foreground">Quick Actions</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {quickActions.map((action) => (
-              <Link key={action.label} href={action.href}>
-                <Card className="group border-border/40 bg-white transition-all duration-200 hover:border-primary/20 hover:shadow-sm">
-                  <CardContent className="flex items-center gap-3 p-4">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/[0.06] transition-colors duration-200 group-hover:bg-primary/[0.1]">
-                      <action.icon className="h-4 w-4 text-primary" />
+      {/* Workflow Pipeline */}
+      <FadeIn delay={0.2}>
+        <Card className="mb-6 border-border/40 bg-white">
+          <CardContent className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-[15px] font-semibold text-foreground">Lab Workflow Pipeline</h2>
+                <p className="text-[12px] text-muted-foreground">
+                  End-to-end view of your diagnostic process
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-0 overflow-x-auto pb-2">
+              {pipelineSteps.map((step, i) => (
+                <div key={step.label} className="flex flex-1 items-center min-w-[100px]">
+                  <Link href={step.href} className="group flex flex-col items-center gap-2 w-full">
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: i * 0.07, duration: 0.25 }}
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${step.bgColor} transition-all duration-200 group-hover:scale-110 group-hover:shadow-md`}
+                    >
+                      <span className={step.color}>{step.icon}</span>
+                    </motion.div>
+                    <div className="text-center">
+                      <p className="text-[12px] font-medium text-foreground">{step.label}</p>
+                      {loading ? (
+                        <Skeleton className="mx-auto mt-0.5 h-4 w-8 rounded" />
+                      ) : (
+                        <p className={`text-[14px] font-bold ${step.color}`}>{step.count}</p>
+                      )}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-[13.5px] font-medium text-foreground">{action.label}</p>
+                  </Link>
+                  {i < pipelineSteps.length - 1 && (
+                    <div className="mb-6 flex-shrink-0 px-1">
+                      <ArrowRight className="h-4 w-4 text-muted-foreground/30" />
                     </div>
-                    <ArrowUpRight className="h-4 w-4 text-muted-foreground/40 transition-colors duration-200 group-hover:text-primary" />
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </FadeIn>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Quick Actions */}
+        <FadeIn delay={0.3} className="lg:col-span-2">
+          <Card className="h-full border-border/40 bg-white">
+            <CardContent className="p-5">
+              <h2 className="mb-4 text-[15px] font-semibold text-foreground">Quick Actions</h2>
+              <div className="space-y-2">
+                {quickActions.map((action) => (
+                  <Link key={action.label} href={action.href}>
+                    <div className="group flex items-center gap-3 rounded-lg p-3 transition-all duration-150 hover:bg-muted/50">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/[0.06] transition-colors duration-200 group-hover:bg-primary/[0.12]">
+                        <action.icon className="h-4.5 w-4.5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13.5px] font-medium text-foreground">{action.label}</p>
+                        <p className="text-[11.5px] text-muted-foreground">{action.desc}</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground/30 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-primary" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </FadeIn>
+
+        {/* Recent Activity */}
+        <FadeIn delay={0.35} className="lg:col-span-3">
+          <Card className="h-full border-border/40 bg-white">
+            <CardContent className="p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-[15px] font-semibold text-foreground">Recent Visits</h2>
+                <Link
+                  href="/dashboard/visits"
+                  className="text-[12px] font-medium text-primary hover:underline"
+                >
+                  View all
+                </Link>
+              </div>
+              {loading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 rounded-lg border border-border/30 p-3"
+                    >
+                      <Skeleton className="h-9 w-9 rounded-full" />
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-3.5 w-32 rounded" />
+                        <Skeleton className="h-3 w-24 rounded" />
+                      </div>
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : recentVisits.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50">
+                    <ClipboardList className="h-6 w-6 text-muted-foreground/40" />
+                  </div>
+                  <p className="mt-3 text-[13px] font-medium text-muted-foreground">
+                    No recent visits
+                  </p>
+                  <Link href="/dashboard/visits/new">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-3 h-8 gap-1.5 rounded-lg text-[12px]"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Create Visit
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recentVisits.map((visit) => (
+                    <Link key={visit.id} href={`/dashboard/visits/${visit.id}`}>
+                      <div className="group flex items-center gap-3 rounded-lg border border-border/30 p-3 transition-all duration-150 hover:border-border/50 hover:bg-muted/20 hover:shadow-sm">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/[0.08] text-[12px] font-semibold text-primary">
+                          {visit.patient
+                            ? `${visit.patient.firstName[0]}${visit.patient.lastName[0]}`
+                            : 'V'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-[13px] font-medium text-foreground truncate">
+                              {visit.patient
+                                ? `${visit.patient.firstName} ${visit.patient.lastName}`
+                                : `Visit ${visit.visitNumber}`}
+                            </p>
+                            <span className="flex-shrink-0 font-mono text-[11px] text-muted-foreground">
+                              {visit.visitNumber}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Clock className="h-3 w-3 text-muted-foreground/50" />
+                            <span className="text-[11.5px] text-muted-foreground">
+                              {format(new Date(visit.createdAt), 'dd MMM yyyy, hh:mm a')}
+                            </span>
+                          </div>
+                        </div>
+                        <StatusBadge
+                          status={visit.status}
+                          colorMap={VISIT_STATUS_COLORS}
+                          labelMap={VISIT_STATUS_LABELS}
+                        />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </FadeIn>
+      </div>
 
       {/* System Status */}
       <FadeIn delay={0.4}>
-        <Card className="border-border/40 bg-white">
+        <Card className="mt-6 border-border/40 bg-white">
           <CardContent className="p-5">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">

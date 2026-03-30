@@ -7,18 +7,41 @@ import type { ApiResponse, Visit, TestOrder } from '@/types';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { WorkflowStepper } from '@/components/shared/workflow-stepper';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  VISIT_STATUS_LABELS, VISIT_STATUS_COLORS,
-  SAMPLE_STATUS_LABELS, SAMPLE_STATUS_COLORS,
-  RESULT_STATUS_LABELS, RESULT_STATUS_COLORS,
+  VISIT_STATUS_LABELS,
+  VISIT_STATUS_COLORS,
+  SAMPLE_STATUS_LABELS,
+  SAMPLE_STATUS_COLORS,
+  RESULT_STATUS_LABELS,
+  RESULT_STATUS_COLORS,
 } from '@/lib/constants';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Loader2, FileText, Receipt, CalendarPlus, FlaskConical, ClipboardList, Pipette, AlertTriangle, StickyNote } from 'lucide-react';
+import {
+  Loader2,
+  FileText,
+  Receipt,
+  CalendarPlus,
+  FlaskConical,
+  ClipboardList,
+  Pipette,
+  AlertTriangle,
+  StickyNote,
+  CheckCircle2,
+  Download,
+} from 'lucide-react';
 import { PageTransition } from '@/components/shared/page-transition';
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/shared/animations';
+
+const VISIT_STEPS = [
+  { label: 'Registered', status: 'REGISTERED' },
+  { label: 'Samples Collected', status: 'SAMPLES_COLLECTED' },
+  { label: 'In Progress', status: 'IN_PROGRESS' },
+  { label: 'Completed', status: 'COMPLETED' },
+];
 
 export default function VisitDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -101,6 +124,15 @@ export default function VisitDetailPage() {
         backHref="/dashboard/visits"
       />
 
+      {/* Workflow Progress Stepper */}
+      <FadeIn delay={0.05}>
+        <Card className="mb-6 rounded-xl border-border/40 shadow-sm">
+          <CardContent className="py-6 px-8">
+            <WorkflowStepper steps={VISIT_STEPS} currentStatus={visit.status} />
+          </CardContent>
+        </Card>
+      </FadeIn>
+
       <StaggerContainer className="grid gap-6 lg:grid-cols-3">
         {/* Visit Info */}
         <StaggerItem>
@@ -115,7 +147,11 @@ export default function VisitDetailPage() {
               <div className="space-y-3 text-[13px]">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Status</span>
-                  <StatusBadge status={visit.status} colorMap={VISIT_STATUS_COLORS} labelMap={VISIT_STATUS_LABELS} />
+                  <StatusBadge
+                    status={visit.status}
+                    colorMap={VISIT_STATUS_COLORS}
+                    labelMap={VISIT_STATUS_LABELS}
+                  />
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Visit #</span>
@@ -123,7 +159,9 @@ export default function VisitDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Created</span>
-                  <span className="font-medium">{format(new Date(visit.createdAt), 'dd MMM yyyy')}</span>
+                  <span className="font-medium">
+                    {format(new Date(visit.createdAt), 'dd MMM yyyy')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Time</span>
@@ -151,11 +189,16 @@ export default function VisitDetailPage() {
               {patient && (
                 <div className="mb-5 flex items-center gap-3 rounded-lg border border-border/40 bg-muted/20 p-3.5">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/[0.08] text-[13px] font-semibold text-primary">
-                    {patient.firstName[0]}{patient.lastName[0]}
+                    {patient.firstName[0]}
+                    {patient.lastName[0]}
                   </div>
                   <div className="flex-1">
-                    <p className="text-[13.5px] font-medium">{patient.firstName} {patient.lastName}</p>
-                    <p className="text-[12px] text-muted-foreground">MRN: {patient.mrn} &bull; {patient.phone}</p>
+                    <p className="text-[13.5px] font-medium">
+                      {patient.firstName} {patient.lastName}
+                    </p>
+                    <p className="text-[12px] text-muted-foreground">
+                      MRN: {patient.mrn} &bull; {patient.phone}
+                    </p>
                   </div>
                   <Button
                     variant="ghost"
@@ -169,7 +212,9 @@ export default function VisitDetailPage() {
               )}
 
               {/* Action buttons */}
-              <div className="mb-2 text-[12px] font-medium text-muted-foreground">Quick Actions</div>
+              <div className="mb-2 text-[12px] font-medium text-muted-foreground">
+                Quick Actions
+              </div>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
@@ -178,7 +223,11 @@ export default function VisitDetailPage() {
                   disabled={createReport.isPending}
                   className="h-9 gap-1.5 rounded-lg border-border/50 text-[12.5px]"
                 >
-                  {createReport.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                  {createReport.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileText className="h-3.5 w-3.5" />
+                  )}
                   Create Report
                 </Button>
                 <Button
@@ -188,7 +237,11 @@ export default function VisitDetailPage() {
                   disabled={createInvoice.isPending}
                   className="h-9 gap-1.5 rounded-lg border-border/50 text-[12.5px]"
                 >
-                  {createInvoice.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Receipt className="h-3.5 w-3.5" />}
+                  {createInvoice.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Receipt className="h-3.5 w-3.5" />
+                  )}
                   Create Invoice
                 </Button>
                 <Button
@@ -216,31 +269,61 @@ export default function VisitDetailPage() {
               </div>
               <h3 className="text-[13.5px] font-semibold">Test Orders</h3>
               {testOrders && testOrders.length > 0 && (
-                <span className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">{testOrders.length}</span>
+                <>
+                  <span className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {testOrders.length}
+                  </span>
+                  <div className="ml-auto flex items-center gap-3 text-[11px]">
+                    <span className="flex items-center gap-1 text-blue-600">
+                      <Pipette className="h-3 w-3" />
+                      {testOrders.filter((o) => o.sample).length}/{testOrders.length} collected
+                    </span>
+                    <span className="flex items-center gap-1 text-emerald-600">
+                      <CheckCircle2 className="h-3 w-3" />
+                      {testOrders.filter((o) => o.result?.status === 'VERIFIED').length}/
+                      {testOrders.length} verified
+                    </span>
+                  </div>
+                </>
               )}
             </div>
             {!testOrders || testOrders.length === 0 ? (
               <div className="py-8 text-center">
                 <FlaskConical className="mx-auto h-8 w-8 text-muted-foreground/30" />
-                <p className="mt-2 text-[13px] text-muted-foreground">No test orders for this visit.</p>
+                <p className="mt-2 text-[13px] text-muted-foreground">
+                  No test orders for this visit.
+                </p>
               </div>
             ) : (
               <div className="space-y-2.5">
                 {testOrders.map((order) => (
-                  <div key={order.id} className="rounded-lg border border-border/40 p-4 transition-colors hover:bg-muted/20">
+                  <div
+                    key={order.id}
+                    className="rounded-lg border border-border/40 p-4 transition-colors hover:bg-muted/20"
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="text-[13.5px] font-medium text-foreground">{order.test?.name || 'Test'}</p>
+                        <p className="text-[13.5px] font-medium text-foreground">
+                          {order.test?.name || 'Test'}
+                        </p>
                         <p className="mt-0.5 font-mono text-[12px] text-muted-foreground">
                           {order.test?.code} &bull; ₹{Number(order.test?.price ?? 0).toFixed(0)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         {order.sample && (
-                          <StatusBadge status={order.sample.status} colorMap={SAMPLE_STATUS_COLORS} labelMap={SAMPLE_STATUS_LABELS} />
+                          <StatusBadge
+                            status={order.sample.status}
+                            colorMap={SAMPLE_STATUS_COLORS}
+                            labelMap={SAMPLE_STATUS_LABELS}
+                          />
                         )}
                         {order.result && (
-                          <StatusBadge status={order.result.status} colorMap={RESULT_STATUS_COLORS} labelMap={RESULT_STATUS_LABELS} />
+                          <StatusBadge
+                            status={order.result.status}
+                            colorMap={RESULT_STATUS_COLORS}
+                            labelMap={RESULT_STATUS_LABELS}
+                          />
                         )}
                         {!order.sample && (
                           <Button
@@ -250,7 +333,11 @@ export default function VisitDetailPage() {
                             disabled={collectSample.isPending}
                             className="h-8 gap-1.5 rounded-lg border-violet-200 bg-violet-50 text-[12px] text-violet-700 hover:bg-violet-100"
                           >
-                            {collectSample.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Pipette className="h-3 w-3" />}
+                            {collectSample.isPending ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Pipette className="h-3 w-3" />
+                            )}
                             Collect Sample
                           </Button>
                         )}
@@ -259,7 +346,9 @@ export default function VisitDetailPage() {
                     {order.result && order.result.status !== 'PENDING' && (
                       <div className="mt-3 flex items-start gap-2 rounded-lg bg-muted/30 p-3 text-[13px]">
                         <span className="font-medium text-foreground">Result:</span>
-                        <span className="text-foreground">{order.result.value} {order.result.unit}</span>
+                        <span className="text-foreground">
+                          {order.result.value} {order.result.unit}
+                        </span>
                         {order.result.isAbnormal && (
                           <span className="ml-auto inline-flex items-center gap-1 text-[12px] font-medium text-destructive">
                             <AlertTriangle className="h-3 w-3" /> Abnormal
