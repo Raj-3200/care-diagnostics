@@ -7,12 +7,28 @@ import type { ApiResponse, Invoice } from '@/types';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, PAYMENT_METHOD_LABELS } from '@/lib/constants';
+import {
+  INVOICE_STATUS_LABELS,
+  INVOICE_STATUS_COLORS,
+  PAYMENT_METHOD_LABELS,
+} from '@/lib/constants';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Loader2, CreditCard } from 'lucide-react';
@@ -22,7 +38,11 @@ import { FadeIn } from '@/components/shared/animations';
 export default function InvoicesPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<string>('ALL');
-  const [payDialog, setPayDialog] = useState<{ open: boolean; invoiceId: string; dueAmount: number }>({ open: false, invoiceId: '', dueAmount: 0 });
+  const [payDialog, setPayDialog] = useState<{
+    open: boolean;
+    invoiceId: string;
+    dueAmount: number;
+  }>({ open: false, invoiceId: '', dueAmount: 0 });
   const [payForm, setPayForm] = useState({ amount: '', paymentMethod: 'CASH' });
   const qc = useQueryClient();
 
@@ -38,7 +58,7 @@ export default function InvoicesPage() {
 
   const recordPayment = useMutation({
     mutationFn: async () => {
-      await api.post(`/invoices/${payDialog.invoiceId}/pay`, {
+      await api.post(`/invoices/${payDialog.invoiceId}/payment`, {
         amount: parseFloat(payForm.amount),
         paymentMethod: payForm.paymentMethod,
       });
@@ -55,11 +75,17 @@ export default function InvoicesPage() {
   const columns: Column<Invoice>[] = [
     {
       header: 'Invoice #',
-      cell: (row) => <span className="font-mono text-[13px] text-primary/80">{row.invoiceNumber}</span>,
+      cell: (row) => (
+        <span className="font-mono text-[13px] text-primary/80">{row.invoiceNumber}</span>
+      ),
     },
     {
       header: 'Visit',
-      cell: (row) => <span className="font-mono text-[13px] text-muted-foreground">{row.visit?.visitNumber || '\u2014'}</span>,
+      cell: (row) => (
+        <span className="font-mono text-[13px] text-muted-foreground">
+          {row.visit?.visitNumber || '\u2014'}
+        </span>
+      ),
     },
     {
       header: 'Patient',
@@ -69,35 +95,57 @@ export default function InvoicesPage() {
         return (
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/[0.06] text-[11px] font-semibold text-primary">
-              {patient.firstName[0]}{patient.lastName[0]}
+              {patient.firstName[0]}
+              {patient.lastName[0]}
             </div>
-            <span className="text-[13.5px] font-medium">{patient.firstName} {patient.lastName}</span>
+            <span className="text-[13.5px] font-medium">
+              {patient.firstName} {patient.lastName}
+            </span>
           </div>
         );
       },
     },
     {
       header: 'Net Amount',
-      cell: (row) => <span className="font-medium">{'\u20B9'}{Number(row.netAmount).toFixed(2)}</span>,
+      cell: (row) => (
+        <span className="font-medium">
+          {'\u20B9'}
+          {Number(row.netAmount).toFixed(2)}
+        </span>
+      ),
       className: 'text-right',
     },
     {
       header: 'Paid',
-      cell: (row) => <span className="text-emerald-600">{'\u20B9'}{Number(row.paidAmount).toFixed(2)}</span>,
+      cell: (row) => (
+        <span className="text-emerald-600">
+          {'\u20B9'}
+          {Number(row.paidAmount).toFixed(2)}
+        </span>
+      ),
       className: 'text-right',
     },
     {
       header: 'Due',
       cell: (row) => {
         const due = Number(row.dueAmount);
-        return <span className={due > 0 ? 'font-medium text-destructive' : 'text-muted-foreground'}>{'\u20B9'}{due.toFixed(2)}</span>;
+        return (
+          <span className={due > 0 ? 'font-medium text-destructive' : 'text-muted-foreground'}>
+            {'\u20B9'}
+            {due.toFixed(2)}
+          </span>
+        );
       },
       className: 'text-right',
     },
     {
       header: 'Status',
       cell: (row) => (
-        <StatusBadge status={row.status} colorMap={INVOICE_STATUS_COLORS} labelMap={INVOICE_STATUS_LABELS} />
+        <StatusBadge
+          status={row.status}
+          colorMap={INVOICE_STATUS_COLORS}
+          labelMap={INVOICE_STATUS_LABELS}
+        />
       ),
     },
     {
@@ -110,7 +158,10 @@ export default function InvoicesPage() {
               variant="outline"
               onClick={() => {
                 setPayDialog({ open: true, invoiceId: row.id, dueAmount: Number(row.dueAmount) });
-                setPayForm({ amount: String(Number(row.dueAmount).toFixed(2)), paymentMethod: 'CASH' });
+                setPayForm({
+                  amount: String(Number(row.dueAmount).toFixed(2)),
+                  paymentMethod: 'CASH',
+                });
               }}
               className="h-8 gap-1.5 rounded-lg border-emerald-200 bg-emerald-50 text-[12px] text-emerald-700 hover:bg-emerald-100"
             >
@@ -129,14 +180,22 @@ export default function InvoicesPage() {
 
       <FadeIn delay={0.05}>
         <div className="mb-5 flex items-center gap-3">
-          <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
+          <Select
+            value={status}
+            onValueChange={(v) => {
+              setStatus(v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="h-10 w-52 rounded-lg border-border/50 bg-white text-[13.5px]">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Statuses</SelectItem>
               {Object.entries(INVOICE_STATUS_LABELS).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
+                <SelectItem key={k} value={k}>
+                  {v}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -162,7 +221,11 @@ export default function InvoicesPage() {
           <DialogHeader>
             <DialogTitle className="text-lg">Record Payment</DialogTitle>
             <p className="text-[13px] text-muted-foreground">
-              Due amount: <span className="font-medium text-foreground">{'\u20B9'}{payDialog.dueAmount.toFixed(2)}</span>
+              Due amount:{' '}
+              <span className="font-medium text-foreground">
+                {'\u20B9'}
+                {payDialog.dueAmount.toFixed(2)}
+              </span>
             </p>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -179,23 +242,36 @@ export default function InvoicesPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-[13px]">Payment Method</Label>
-              <Select value={payForm.paymentMethod} onValueChange={(v) => setPayForm((p) => ({ ...p, paymentMethod: v }))}>
+              <Select
+                value={payForm.paymentMethod}
+                onValueChange={(v) => setPayForm((p) => ({ ...p, paymentMethod: v }))}
+              >
                 <SelectTrigger className="h-10 rounded-lg border-border/60 text-[14px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                    <SelectItem key={k} value={k}>
+                      {v}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPayDialog((p) => ({ ...p, open: false }))} className="rounded-lg">
+            <Button
+              variant="outline"
+              onClick={() => setPayDialog((p) => ({ ...p, open: false }))}
+              className="rounded-lg"
+            >
               Cancel
             </Button>
-            <Button onClick={() => recordPayment.mutate()} disabled={recordPayment.isPending} className="rounded-lg">
+            <Button
+              onClick={() => recordPayment.mutate()}
+              disabled={recordPayment.isPending}
+              className="rounded-lg"
+            >
               {recordPayment.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Record Payment
             </Button>
