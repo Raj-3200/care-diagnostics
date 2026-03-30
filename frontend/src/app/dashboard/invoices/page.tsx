@@ -234,6 +234,8 @@ export default function InvoicesPage() {
               <Input
                 type="number"
                 step="0.01"
+                min="0.01"
+                max={payDialog.dueAmount}
                 value={payForm.amount}
                 onChange={(e) => setPayForm((p) => ({ ...p, amount: e.target.value }))}
                 className="h-10 rounded-lg border-border/60 text-[14px]"

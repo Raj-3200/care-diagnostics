@@ -7,9 +7,21 @@ import type { ApiResponse, Result } from '@/types';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,8 +36,18 @@ import { FadeIn } from '@/components/shared/animations';
 export default function ResultsPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<string>('ALL');
-  const [entryDialog, setEntryDialog] = useState<{ open: boolean; resultId: string; testName: string }>({ open: false, resultId: '', testName: '' });
-  const [resultForm, setResultForm] = useState({ value: '', unit: '', referenceRange: '', isAbnormal: false, remarks: '' });
+  const [entryDialog, setEntryDialog] = useState<{
+    open: boolean;
+    resultId: string;
+    testName: string;
+  }>({ open: false, resultId: '', testName: '' });
+  const [resultForm, setResultForm] = useState({
+    value: '',
+    unit: '',
+    referenceRange: '',
+    isAbnormal: false,
+    remarks: '',
+  });
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -63,7 +85,11 @@ export default function ResultsPage() {
   });
 
   const openEntryDialog = (result: Result) => {
-    setEntryDialog({ open: true, resultId: result.id, testName: result.testOrder?.test?.name || 'Test' });
+    setEntryDialog({
+      open: true,
+      resultId: result.id,
+      testName: result.testOrder?.test?.name || 'Test',
+    });
     setResultForm({
       value: '',
       unit: result.testOrder?.test?.sampleType === 'BLOOD' ? 'mg/dL' : '',
@@ -88,9 +114,12 @@ export default function ResultsPage() {
         return (
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/[0.06] text-[11px] font-semibold text-primary">
-              {patient.firstName[0]}{patient.lastName[0]}
+              {patient.firstName[0]}
+              {patient.lastName[0]}
             </div>
-            <span className="text-[13px]">{patient.firstName} {patient.lastName}</span>
+            <span className="text-[13px]">
+              {patient.firstName} {patient.lastName}
+            </span>
           </div>
         );
       },
@@ -101,7 +130,9 @@ export default function ResultsPage() {
         if (!row.value) return <span className="text-muted-foreground">{'\u2014'}</span>;
         return (
           <div className="flex items-center gap-1.5">
-            <span className="font-medium">{row.value} {row.unit || ''}</span>
+            <span className="font-medium">
+              {row.value} {row.unit || ''}
+            </span>
             {row.isAbnormal && <AlertTriangle className="h-3.5 w-3.5 text-destructive" />}
           </div>
         );
@@ -109,12 +140,18 @@ export default function ResultsPage() {
     },
     {
       header: 'Reference',
-      cell: (row) => <span className="text-[13px] text-muted-foreground">{row.referenceRange || '\u2014'}</span>,
+      cell: (row) => (
+        <span className="text-[13px] text-muted-foreground">{row.referenceRange || '\u2014'}</span>
+      ),
     },
     {
       header: 'Status',
       cell: (row) => (
-        <StatusBadge status={row.status} colorMap={RESULT_STATUS_COLORS} labelMap={RESULT_STATUS_LABELS} />
+        <StatusBadge
+          status={row.status}
+          colorMap={RESULT_STATUS_COLORS}
+          labelMap={RESULT_STATUS_LABELS}
+        />
       ),
     },
     {
@@ -148,7 +185,11 @@ export default function ResultsPage() {
               disabled={verifyResult.isPending}
               className="h-8 gap-1.5 rounded-lg border-emerald-200 bg-emerald-50 text-[12px] text-emerald-700 hover:bg-emerald-100"
             >
-              {verifyResult.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+              {verifyResult.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <CheckCircle className="h-3 w-3" />
+              )}
               Verify
             </Button>
           )}
@@ -163,14 +204,22 @@ export default function ResultsPage() {
 
       <FadeIn delay={0.05}>
         <div className="mb-5 flex items-center gap-3">
-          <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
+          <Select
+            value={status}
+            onValueChange={(v) => {
+              setStatus(v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="h-10 w-52 rounded-lg border-border/50 bg-white text-[13.5px]">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Statuses</SelectItem>
               {Object.entries(RESULT_STATUS_LABELS).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
+                <SelectItem key={k} value={k}>
+                  {v}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -191,7 +240,12 @@ export default function ResultsPage() {
         }}
       />
 
-      <Dialog open={entryDialog.open} onOpenChange={(open) => setEntryDialog({ open, resultId: entryDialog.resultId, testName: entryDialog.testName })}>
+      <Dialog
+        open={entryDialog.open}
+        onOpenChange={(open) =>
+          setEntryDialog({ open, resultId: entryDialog.resultId, testName: entryDialog.testName })
+        }
+      >
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle className="text-lg">Enter Result</DialogTitle>
@@ -246,10 +300,18 @@ export default function ResultsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEntryDialog({ open: false, resultId: '', testName: '' })} className="rounded-lg">
+            <Button
+              variant="outline"
+              onClick={() => setEntryDialog({ open: false, resultId: '', testName: '' })}
+              className="rounded-lg"
+            >
               Cancel
             </Button>
-            <Button onClick={() => enterResult.mutate()} disabled={!resultForm.value || enterResult.isPending} className="rounded-lg">
+            <Button
+              onClick={() => enterResult.mutate()}
+              disabled={resultForm.value === '' || enterResult.isPending}
+              className="rounded-lg"
+            >
               {enterResult.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Result
             </Button>

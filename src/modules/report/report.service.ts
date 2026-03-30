@@ -193,7 +193,7 @@ export const generateReport = async (
         userId,
         payload: { reportNumber: report.reportNumber, visitId: report.visitId },
       })
-      .catch(() => {});
+      .catch((err) => console.error('[EventBus] report.generated emit failed:', err));
 
     return updated;
   });
@@ -250,7 +250,7 @@ export const approveReport = async (id: string, notes: string | undefined, userI
         userId,
         payload: { reportNumber: report.reportNumber, visitId: report.visitId },
       })
-      .catch(() => {});
+      .catch((err) => console.error('[EventBus] report.approved emit failed:', err));
 
     return updated;
   });
@@ -304,7 +304,7 @@ export const dispatchReport = async (id: string, notes: string | undefined, user
         userId,
         payload: { reportNumber: report.reportNumber, visitId: report.visitId },
       })
-      .catch(() => {});
+      .catch((err) => console.error('[EventBus] report.dispatched emit failed:', err));
 
     return updated;
   });

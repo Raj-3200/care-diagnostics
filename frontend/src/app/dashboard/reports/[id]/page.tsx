@@ -17,7 +17,15 @@ import {
 } from '@/lib/constants';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Download, FileText, User, FlaskConical, AlertTriangle, Calendar, CheckCircle } from 'lucide-react';
+import {
+  Download,
+  FileText,
+  User,
+  FlaskConical,
+  AlertTriangle,
+  Calendar,
+  CheckCircle,
+} from 'lucide-react';
 import { PageTransition } from '@/components/shared/page-transition';
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/shared/animations';
 
@@ -34,11 +42,10 @@ export default function ReportDetailPage() {
 
   const handleDownloadPDF = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/reports/${id}/download`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include', // Send httpOnly cookies for auth
         },
       );
 
@@ -84,11 +91,7 @@ export default function ReportDetailPage() {
     <PageTransition>
       <PageHeader
         title={`Report ${report.reportNumber}`}
-        description={
-          patient
-            ? `${patient.firstName} ${patient.lastName} (${patient.mrn})`
-            : ''
-        }
+        description={patient ? `${patient.firstName} ${patient.lastName} (${patient.mrn})` : ''}
         backHref="/dashboard/reports"
       />
 
@@ -102,7 +105,11 @@ export default function ReportDetailPage() {
             <div>
               <div className="flex items-center gap-2.5">
                 <span className="font-mono text-[14px] font-semibold">{report.reportNumber}</span>
-                <StatusBadge status={report.status} colorMap={REPORT_STATUS_COLORS} labelMap={REPORT_STATUS_LABELS} />
+                <StatusBadge
+                  status={report.status}
+                  colorMap={REPORT_STATUS_COLORS}
+                  labelMap={REPORT_STATUS_LABELS}
+                />
               </div>
               <p className="mt-0.5 text-[12px] text-muted-foreground">
                 Created {format(new Date(report.createdAt), 'dd MMM yyyy, hh:mm a')}
@@ -131,13 +138,22 @@ export default function ReportDetailPage() {
                 <InfoRow label="Report #" value={report.reportNumber} mono />
                 <InfoRow label="Visit #" value={report.visit?.visitNumber || '—'} mono />
                 <div className="my-2 border-t border-border/40" />
-                <InfoRow label="Created" value={format(new Date(report.createdAt), 'dd MMM yyyy')} />
+                <InfoRow
+                  label="Created"
+                  value={format(new Date(report.createdAt), 'dd MMM yyyy')}
+                />
                 {report.generatedAt && (
-                  <InfoRow label="Generated" value={format(new Date(report.generatedAt), 'dd MMM yyyy')} />
+                  <InfoRow
+                    label="Generated"
+                    value={format(new Date(report.generatedAt), 'dd MMM yyyy')}
+                  />
                 )}
                 {report.approvedAt && (
                   <div>
-                    <InfoRow label="Approved" value={format(new Date(report.approvedAt), 'dd MMM yyyy')} />
+                    <InfoRow
+                      label="Approved"
+                      value={format(new Date(report.approvedAt), 'dd MMM yyyy')}
+                    />
                     {report.approvedBy && (
                       <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-emerald-50 p-2.5">
                         <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
@@ -173,21 +189,32 @@ export default function ReportDetailPage() {
                 <div className="grid gap-3 text-[13px] sm:grid-cols-2">
                   <div className="flex items-center gap-3 sm:col-span-2 mb-2">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/[0.08] text-[13px] font-semibold text-primary">
-                      {patient.firstName[0]}{patient.lastName[0]}
+                      {patient.firstName[0]}
+                      {patient.lastName[0]}
                     </div>
                     <div>
-                      <p className="font-medium">{patient.firstName} {patient.lastName}</p>
+                      <p className="font-medium">
+                        {patient.firstName} {patient.lastName}
+                      </p>
                       <p className="text-[12px] text-muted-foreground">MRN: {patient.mrn}</p>
                     </div>
                   </div>
-                  <InfoRow label="Date of Birth" value={format(new Date(patient.dateOfBirth), 'dd MMM yyyy')} />
+                  <InfoRow
+                    label="Date of Birth"
+                    value={format(new Date(patient.dateOfBirth), 'dd MMM yyyy')}
+                  />
                   <InfoRow label="Gender" value={patient.gender} />
                   <InfoRow label="Phone" value={patient.phone} />
                   {patient.email && <InfoRow label="Email" value={patient.email} />}
                   {patient.bloodGroup && <InfoRow label="Blood Group" value={patient.bloodGroup} />}
                   {patient.address && (
                     <div className="sm:col-span-2">
-                      <InfoRow label="Address" value={[patient.address, patient.city, patient.state].filter(Boolean).join(', ')} />
+                      <InfoRow
+                        label="Address"
+                        value={[patient.address, patient.city, patient.state]
+                          .filter(Boolean)
+                          .join(', ')}
+                      />
                     </div>
                   )}
                 </div>
@@ -211,7 +238,9 @@ export default function ReportDetailPage() {
               </div>
               <h3 className="text-[13.5px] font-semibold">Test Results</h3>
               {testOrders.length > 0 && (
-                <span className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">{testOrders.length}</span>
+                <span className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  {testOrders.length}
+                </span>
               )}
             </div>
             {testOrders.length === 0 ? (
@@ -224,18 +253,35 @@ export default function ReportDetailPage() {
                 <table className="w-full text-[13px]">
                   <thead>
                     <tr className="border-b bg-[#F8FAFC]">
-                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">Test</th>
-                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">Code</th>
-                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">Result</th>
-                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">Unit</th>
-                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">Ref. Range</th>
-                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">Status</th>
-                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">Remarks</th>
+                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">
+                        Test
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">
+                        Code
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">
+                        Result
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">
+                        Unit
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">
+                        Ref. Range
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">
+                        Status
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-muted-foreground">
+                        Remarks
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {testOrders.map((order) => (
-                      <tr key={order.id} className="border-b border-border/30 last:border-0 transition-colors hover:bg-muted/20">
+                      <tr
+                        key={order.id}
+                        className="border-b border-border/30 last:border-0 transition-colors hover:bg-muted/20"
+                      >
                         <td className="px-4 py-3 font-medium text-foreground">
                           {order.test?.name || '—'}
                         </td>
@@ -244,7 +290,9 @@ export default function ReportDetailPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
-                            <span className={`font-semibold ${order.result?.isAbnormal ? 'text-destructive' : 'text-foreground'}`}>
+                            <span
+                              className={`font-semibold ${order.result?.isAbnormal ? 'text-destructive' : 'text-foreground'}`}
+                            >
                               {order.result?.value || '—'}
                             </span>
                             {order.result?.isAbnormal && (

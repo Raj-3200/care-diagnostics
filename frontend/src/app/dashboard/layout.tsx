@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { AiAssistant } from '@/components/shared/ai-assistant';
+import { ErrorBoundary } from '@/components/shared/error-boundary';
 import { Activity } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -54,7 +55,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto bg-[#F8FAFC] p-6 scrollbar-thin lg:p-8">
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </div>
       <AiAssistant />

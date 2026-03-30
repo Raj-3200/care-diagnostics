@@ -391,7 +391,7 @@ async function executeAction(
               source: 'ai-assistant',
             },
           })
-          .catch(() => {});
+          .catch((err) => console.error('[EventBus] ai patient.created emit failed:', err));
 
         return {
           success: true,
@@ -467,7 +467,7 @@ async function executeAction(
               source: 'ai-assistant',
             },
           })
-          .catch(() => {});
+          .catch((err) => console.error('[EventBus] ai visit.created emit failed:', err));
 
         return {
           success: true,

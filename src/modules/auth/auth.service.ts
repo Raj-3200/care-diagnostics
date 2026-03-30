@@ -37,18 +37,16 @@ export const login = async (
     where: { email },
   });
 
-  if (!user || user.deletedAt) {
+  // Always compare password to prevent timing attacks that reveal valid emails
+  const dummyHash = '$2b$10$dummyhashtopreventtimingattackpadding000';
+  const isPasswordValid = await comparePassword(password, user?.password ?? dummyHash);
+
+  if (!user || user.deletedAt || !isPasswordValid) {
     throw new UnauthorizedError('Invalid email or password');
   }
 
   if (!user.isActive) {
     throw new UnauthorizedError('Account is inactive');
-  }
-
-  // Compare password
-  const isPasswordValid = await comparePassword(password, user.password);
-  if (!isPasswordValid) {
-    throw new UnauthorizedError('Invalid email or password');
   }
 
   // Parallelize non-blocking DB writes for speed

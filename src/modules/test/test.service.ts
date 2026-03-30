@@ -5,6 +5,7 @@ import { prisma } from '../../config/database.js';
 import { CreateTestInput, UpdateTestInput } from './test.validators.js';
 import { TestCategory } from '@prisma/client';
 import { env } from '../../config/env.js';
+import { cacheGet, cacheSet, cacheInvalidate } from '../../core/cache.js';
 
 /**
  * Create a new test definition
@@ -39,12 +40,18 @@ export const createTest = async (data: CreateTestInput) => {
  * Get test by ID
  */
 export const getTestById = async (testId: string) => {
+  // Check cache first — tests rarely change
+  const cacheKey = `test:${testId}`;
+  const cached = await cacheGet<Awaited<ReturnType<typeof testRepository.findById>>>(cacheKey);
+  if (cached) return cached;
+
   const test = await testRepository.findById(testId);
 
   if (!test) {
     throw new NotFoundError('Test not found');
   }
 
+  await cacheSet(cacheKey, test, 3600); // 1 hour TTL
   return test;
 };
 
@@ -106,6 +113,9 @@ export const updateTest = async (testId: string, data: UpdateTestInput) => {
     ...(department !== undefined && { department: department ?? undefined }),
     ...(instructions !== undefined && { instructions: instructions ?? undefined }),
   });
+
+  // Invalidate cache
+  await cacheInvalidate(`test:${testId}`);
 
   return updatedTest;
 };

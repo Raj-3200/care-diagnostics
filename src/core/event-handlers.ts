@@ -135,22 +135,24 @@ export function registerEventHandlers(): void {
       const tenantId = event.tenantId;
       const testName = (event.payload.testName as string) || 'Test';
 
-      // Notify all pathologists in this tenant
+      // Notify all pathologists in this tenant (batch insert)
       const pathologists = await prisma.user.findMany({
         where: { tenantId, role: 'PATHOLOGIST', isActive: true, deletedAt: null },
         select: { id: true },
       });
 
-      for (const p of pathologists) {
-        await createNotification(
-          tenantId,
-          p.id,
-          'info',
-          'Result Awaiting Verification',
-          `${testName} result entered and ready for your review`,
-          'Result',
-          event.entityId,
-        );
+      if (pathologists.length > 0) {
+        await prisma.notification.createMany({
+          data: pathologists.map((p) => ({
+            tenantId,
+            userId: p.id,
+            type: 'info',
+            title: 'Result Awaiting Verification',
+            message: `${testName} result entered and ready for your review`,
+            entity: 'Result',
+            entityId: event.entityId,
+          })),
+        });
       }
     } catch (err) {
       console.error('[EventHandler] result.entered handler error:', err);

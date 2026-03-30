@@ -42,6 +42,14 @@ export const createInvoice = async (
   notes: string | undefined,
   userId: string,
 ) => {
+  // Validate numeric inputs
+  if (discountAmount < 0) {
+    throw new ValidationError('Discount amount cannot be negative');
+  }
+  if (taxPercent < 0 || taxPercent > 100) {
+    throw new ValidationError('Tax percent must be between 0 and 100');
+  }
+
   // Validate visit exists
   const visit = await visitRepository.findById(visitId);
   if (!visit) {
