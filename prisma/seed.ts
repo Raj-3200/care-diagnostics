@@ -9,6 +9,8 @@ async function main() {
   const hashedPassword = await bcrypt.hash('Admin@123456', 12);
   const staffPassword = await bcrypt.hash('Staff@123456', 12);
 
+  const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+
   // ==================== USERS ====================
 
   const admin = await prisma.user.upsert({
@@ -21,6 +23,7 @@ async function main() {
       lastName: 'Admin',
       role: Role.ADMIN,
       isActive: true,
+      tenantId: DEFAULT_TENANT_ID,
     },
   });
   console.log('✅ Admin user:', admin.email);
@@ -36,6 +39,7 @@ async function main() {
       role: Role.RECEPTIONIST,
       phone: '9876543210',
       isActive: true,
+      tenantId: DEFAULT_TENANT_ID,
     },
   });
   console.log('✅ Receptionist user:', receptionist.email);
@@ -51,6 +55,7 @@ async function main() {
       role: Role.LAB_TECHNICIAN,
       phone: '9876543211',
       isActive: true,
+      tenantId: DEFAULT_TENANT_ID,
     },
   });
   console.log('✅ Lab Technician user:', labTech.email);
@@ -66,6 +71,7 @@ async function main() {
       role: Role.PATHOLOGIST,
       phone: '9876543212',
       isActive: true,
+      tenantId: DEFAULT_TENANT_ID,
     },
   });
   console.log('✅ Pathologist user:', pathologist.email);
@@ -77,7 +83,8 @@ async function main() {
     {
       code: 'CBC',
       name: 'Complete Blood Count',
-      description: 'Measures red blood cells, white blood cells, hemoglobin, hematocrit, and platelets',
+      description:
+        'Measures red blood cells, white blood cells, hemoglobin, hematocrit, and platelets',
       category: TestCategory.HEMATOLOGY,
       sampleType: SampleType.BLOOD,
       price: 350,
@@ -428,6 +435,7 @@ async function main() {
         turnaroundTime: test.turnaroundTime,
         department: test.department ?? null,
         instructions: test.instructions ?? null,
+        tenantId: DEFAULT_TENANT_ID,
       },
     });
   }

@@ -19,6 +19,7 @@ import { LogOut, Menu, Bell, Search, Command } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { CommandPalette } from '@/components/shared/command-palette';
+import { NotificationBell } from '@/components/shared/notification-bell';
 
 // Generate breadcrumbs from pathname
 function useBreadcrumbs() {
@@ -163,14 +164,7 @@ export function Header() {
             <Search className="h-4 w-4" />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative h-9 w-9 text-muted-foreground hover:text-foreground"
-          >
-            <Bell className="h-4 w-4" />
-            <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary" />
-          </Button>
+          <NotificationBell />
 
           <div className="ml-1.5 h-6 w-px bg-border/60" />
 

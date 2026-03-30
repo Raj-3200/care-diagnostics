@@ -8,6 +8,7 @@ import {
 } from '../../shared/utils/jwt.js';
 import { TokenPayload } from '../../shared/types/auth.types.js';
 import { CONSTANTS } from '../../config/constants.js';
+import crypto from 'crypto';
 
 interface LoginResponse {
   user: {
@@ -16,6 +17,7 @@ interface LoginResponse {
     firstName: string;
     lastName: string;
     role: string;
+    tenantId: string;
     isActive: boolean;
   };
   tokens: {
@@ -67,15 +69,28 @@ export const login = async (
     },
   });
 
-  // Generate tokens
+  // Generate tokens with tenantId
   const tokenPayload: TokenPayload = {
     userId: user.id,
     email: user.email,
     role: user.role,
+    tenantId: user.tenantId,
   };
 
   const accessToken = generateAccessToken(tokenPayload);
-  const refreshToken = generateRefreshToken(tokenPayload);
+  const refreshTokenValue = generateRefreshToken(tokenPayload);
+
+  // Store hashed refresh token in DB for rotation
+  const tokenHash = crypto.createHash('sha256').update(refreshTokenValue).digest('hex');
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      tokenHash,
+      deviceInfo: userAgent?.substring(0, 500),
+      ipAddress,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
 
   return {
     user: {
@@ -84,17 +99,34 @@ export const login = async (
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      tenantId: user.tenantId,
       isActive: user.isActive,
     },
     tokens: {
       accessToken,
-      refreshToken,
+      refreshToken: refreshTokenValue,
     },
   };
 };
 
-export const refreshToken = async (token: string): Promise<{ accessToken: string }> => {
+export const refreshToken = async (
+  token: string,
+): Promise<{ accessToken: string; refreshToken: string }> => {
   const payload = verifyRefreshToken(token);
+
+  // Verify token hash exists in DB and is not revoked
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const storedToken = await prisma.refreshToken.findUnique({
+    where: { tokenHash },
+  });
+
+  if (!storedToken || storedToken.revokedAt) {
+    throw new UnauthorizedError('Invalid refresh token');
+  }
+
+  if (storedToken.expiresAt < new Date()) {
+    throw new UnauthorizedError('Refresh token expired');
+  }
 
   // Find user
   const user = await prisma.user.findUnique({
@@ -105,16 +137,52 @@ export const refreshToken = async (token: string): Promise<{ accessToken: string
     throw new UnauthorizedError('Invalid refresh token');
   }
 
-  // Generate new access token
+  // Rotate: revoke old token and issue new pair
+  await prisma.refreshToken.update({
+    where: { id: storedToken.id },
+    data: { revokedAt: new Date() },
+  });
+
   const tokenPayload: TokenPayload = {
     userId: user.id,
     email: user.email,
     role: user.role,
+    tenantId: user.tenantId,
   };
 
-  const accessToken = generateAccessToken(tokenPayload);
+  const newAccessToken = generateAccessToken(tokenPayload);
+  const newRefreshToken = generateRefreshToken(tokenPayload);
 
-  return { accessToken };
+  // Store new refresh token
+  const newHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: newHash,
+      deviceInfo: storedToken.deviceInfo,
+      ipAddress: storedToken.ipAddress,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+};
+
+export const logout = async (token?: string, userId?: string): Promise<void> => {
+  if (token) {
+    // Revoke specific token
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    await prisma.refreshToken.updateMany({
+      where: { tokenHash, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  } else if (userId) {
+    // Revoke all tokens for user (logout everywhere)
+    await prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
 };
 
 export const getProfile = async (userId: string) => {

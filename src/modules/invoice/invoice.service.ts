@@ -3,6 +3,9 @@ import * as visitRepository from '../visit/visit.repository.js';
 import { prisma } from '../../config/database.js';
 import { NotFoundError, ConflictError, ValidationError } from '../../shared/errors/AppError.js';
 import { InvoiceStatus, PaymentMethod } from '@prisma/client';
+import { eventBus, EVENTS } from '../../core/event-bus.js';
+import { createAuditLog } from '../../shared/utils/audit.js';
+import { env } from '../../config/env.js';
 
 // Auto-generate invoice number: CD-INV-YYYYMMDD-XXXX
 const generateInvoiceNumber = async (): Promise<string> => {
@@ -75,6 +78,7 @@ export const createInvoice = async (
   const invoiceNumber = await generateInvoiceNumber();
 
   const invoice = await invoiceRepository.create({
+    tenantId: env.DEFAULT_TENANT_ID,
     visitId,
     invoiceNumber,
     totalAmount: Math.round(totalAmount * 100) / 100,
@@ -87,19 +91,22 @@ export const createInvoice = async (
   });
 
   // Audit log
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'INVOICE_CREATED',
-      entity: 'Invoice',
-      entityId: invoice.id,
-      newValue: {
-        invoiceNumber,
-        totalAmount,
-        netAmount,
-        visitId,
-      },
-    },
+  await createAuditLog({
+    userId,
+    action: 'INVOICE_CREATED',
+    entity: 'Invoice',
+    entityId: invoice.id,
+    newValue: { invoiceNumber, totalAmount, netAmount, visitId },
+  });
+
+  // Domain event
+  await eventBus.emit({
+    type: EVENTS.INVOICE_CREATED,
+    tenantId: env.DEFAULT_TENANT_ID,
+    entity: 'Invoice',
+    entityId: invoice.id,
+    userId,
+    payload: { invoiceNumber, totalAmount, netAmount, visitId },
   });
 
   return invoice;
@@ -190,22 +197,26 @@ export const recordPayment = async (
     notes: notes ?? invoice.notes,
   });
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'PAYMENT_RECORDED',
+  await createAuditLog({
+    userId,
+    action: 'PAYMENT_RECORDED',
+    entity: 'Invoice',
+    entityId: id,
+    oldValue: { paidAmount: currentPaid, dueAmount: invoice.dueAmount, status: invoice.status },
+    newValue: { paidAmount: newPaid, dueAmount: newDue, status: newStatus, paymentMethod, amount },
+  });
+
+  // Emit event if fully paid
+  if (newStatus === InvoiceStatus.PAID) {
+    await eventBus.emit({
+      type: EVENTS.INVOICE_PAID,
+      tenantId: env.DEFAULT_TENANT_ID,
       entity: 'Invoice',
       entityId: id,
-      oldValue: { paidAmount: currentPaid, dueAmount: invoice.dueAmount, status: invoice.status },
-      newValue: {
-        paidAmount: newPaid,
-        dueAmount: newDue,
-        status: newStatus,
-        paymentMethod,
-        amount,
-      },
-    },
-  });
+      userId,
+      payload: { invoiceNumber: invoice.invoiceNumber, netAmount: currentNet },
+    });
+  }
 
   return updated;
 };
@@ -248,15 +259,13 @@ export const applyDiscount = async (
     notes: notes ?? invoice.notes,
   });
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'DISCOUNT_APPLIED',
-      entity: 'Invoice',
-      entityId: id,
-      oldValue: { discountAmount: invoice.discountAmount, netAmount: oldNet },
-      newValue: { discountAmount: discount, netAmount },
-    },
+  await createAuditLog({
+    userId,
+    action: 'DISCOUNT_APPLIED',
+    entity: 'Invoice',
+    entityId: id,
+    oldValue: { discountAmount: invoice.discountAmount, netAmount: oldNet },
+    newValue: { discountAmount: discount, netAmount },
   });
 
   return updated;
@@ -282,15 +291,13 @@ export const cancelInvoice = async (id: string, reason: string, userId: string) 
     notes: reason,
   });
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'INVOICE_CANCELLED',
-      entity: 'Invoice',
-      entityId: id,
-      oldValue: { status: invoice.status },
-      newValue: { status: InvoiceStatus.CANCELLED, reason },
-    },
+  await createAuditLog({
+    userId,
+    action: 'INVOICE_CANCELLED',
+    entity: 'Invoice',
+    entityId: id,
+    oldValue: { status: invoice.status },
+    newValue: { status: InvoiceStatus.CANCELLED, reason },
   });
 
   return updated;
@@ -320,15 +327,13 @@ export const refundInvoice = async (id: string, reason: string, userId: string) 
     notes: reason,
   });
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'INVOICE_REFUNDED',
-      entity: 'Invoice',
-      entityId: id,
-      oldValue: { status: invoice.status, paidAmount },
-      newValue: { status: InvoiceStatus.REFUNDED, refundedAmount: paidAmount, reason },
-    },
+  await createAuditLog({
+    userId,
+    action: 'INVOICE_REFUNDED',
+    entity: 'Invoice',
+    entityId: id,
+    oldValue: { status: invoice.status, paidAmount },
+    newValue: { status: InvoiceStatus.REFUNDED, refundedAmount: paidAmount, reason },
   });
 
   return updated;
@@ -349,13 +354,11 @@ export const deleteInvoice = async (id: string, userId: string) => {
 
   await invoiceRepository.softDelete(id);
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'INVOICE_DELETED',
-      entity: 'Invoice',
-      entityId: id,
-      oldValue: { invoiceNumber: invoice.invoiceNumber, status: invoice.status },
-    },
+  await createAuditLog({
+    userId,
+    action: 'INVOICE_DELETED',
+    entity: 'Invoice',
+    entityId: id,
+    oldValue: { invoiceNumber: invoice.invoiceNumber, status: invoice.status },
   });
 };

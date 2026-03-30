@@ -56,6 +56,7 @@ export const findAll = async (
 };
 
 export const create = async (data: {
+  tenantId: string;
   testOrderId: string;
   barcode: string;
   sampleType: SampleType;
@@ -63,6 +64,7 @@ export const create = async (data: {
 }) => {
   return prisma.sample.create({
     data: {
+      tenantId: data.tenantId,
       testOrderId: data.testOrderId,
       barcode: data.barcode,
       sampleType: data.sampleType,

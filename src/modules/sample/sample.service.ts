@@ -11,6 +11,12 @@ import {
 } from './sample.validators.js';
 import { SampleStatus } from '@prisma/client';
 import crypto from 'crypto';
+import { createStateMachine, SAMPLE_WORKFLOW, SampleState } from '../../core/state-machine.js';
+import { eventBus, EVENTS } from '../../core/event-bus.js';
+import { createAuditLog } from '../../shared/utils/audit.js';
+import { env } from '../../config/env.js';
+
+const sampleMachine = createStateMachine<SampleState>(SAMPLE_WORKFLOW);
 
 /**
  * Create a sample (initialize sample collection task)
@@ -38,7 +44,7 @@ export const createSample = async (data: CreateSampleInput) => {
   }
 
   // Create sample
-  const sample = await sampleRepository.create(data);
+  const sample = await sampleRepository.create({ ...data, tenantId: env.DEFAULT_TENANT_ID });
 
   return sample;
 };
@@ -90,7 +96,7 @@ export const getSampleByTestOrder = async (testOrderId: string) => {
 export const quickCollect = async (testOrderId: string, userId: string) => {
   const testOrder = await prisma.testOrder.findUnique({
     where: { id: testOrderId, deletedAt: null },
-    include: { test: true, sample: true },
+    include: { test: true, sample: true, visit: true },
   });
 
   if (!testOrder) {
@@ -108,6 +114,7 @@ export const quickCollect = async (testOrderId: string, userId: string) => {
   // Create sample and mark collected in one transaction
   const sample = await prisma.sample.create({
     data: {
+      tenantId: testOrder.visit?.tenantId ?? env.DEFAULT_TENANT_ID,
       testOrderId,
       barcode,
       sampleType,
@@ -121,24 +128,52 @@ export const quickCollect = async (testOrderId: string, userId: string) => {
     },
   });
 
+  // Emit sample collected event
+  const visitId = testOrder.visit?.id ?? testOrder.visitId;
+  await eventBus.emit({
+    type: EVENTS.SAMPLE_COLLECTED,
+    tenantId: testOrder.visit?.tenantId ?? env.DEFAULT_TENANT_ID,
+    entity: 'Sample',
+    entityId: sample.id,
+    userId,
+    payload: { visitId, testOrderId, barcode, sampleType },
+  });
+
   return sample;
 };
 
 /**
  * Receive sample in lab — transitions COLLECTED → IN_LAB
  */
-export const receiveInLab = async (sampleId: string) => {
+export const receiveInLab = async (sampleId: string, userId: string = '') => {
   const sample = await sampleRepository.findById(sampleId);
   if (!sample) {
     throw new NotFoundError('Sample not found');
   }
 
-  if (sample.status !== SampleStatus.COLLECTED) {
-    throw new ConflictError(`Cannot receive sample in ${sample.status} status. Must be COLLECTED.`);
-  }
+  // Use state machine
+  await sampleMachine.transition(sample.status as SampleState, 'IN_LAB', {
+    entityId: sampleId,
+    userId,
+    role: 'LAB_TECHNICIAN',
+    tenantId: env.DEFAULT_TENANT_ID,
+  });
 
   const updated = await sampleRepository.update(sampleId, {
     status: SampleStatus.IN_LAB,
+  });
+
+  // Emit event — triggers visit IN_PROGRESS automation
+  const visitId = (sample as Record<string, unknown>).testOrder
+    ? (((sample as Record<string, unknown>).testOrder as Record<string, unknown>).visitId as string)
+    : '';
+  await eventBus.emit({
+    type: EVENTS.SAMPLE_RECEIVED,
+    tenantId: env.DEFAULT_TENANT_ID,
+    entity: 'Sample',
+    entityId: sampleId,
+    userId,
+    payload: { visitId },
   });
 
   return updated;
@@ -148,15 +183,19 @@ export const receiveInLab = async (sampleId: string) => {
  * Mark sample as processed — transitions IN_LAB → PROCESSED
  * Also auto-creates a PENDING result record for the test order
  */
-export const markProcessed = async (sampleId: string) => {
+export const markProcessed = async (sampleId: string, userId: string = '') => {
   const sample = await sampleRepository.findById(sampleId);
   if (!sample) {
     throw new NotFoundError('Sample not found');
   }
 
-  if (sample.status !== SampleStatus.IN_LAB) {
-    throw new ConflictError(`Cannot process sample in ${sample.status} status. Must be IN_LAB.`);
-  }
+  // Use state machine
+  await sampleMachine.transition(sample.status as SampleState, 'PROCESSED', {
+    entityId: sampleId,
+    userId,
+    role: 'LAB_TECHNICIAN',
+    tenantId: env.DEFAULT_TENANT_ID,
+  });
 
   // Use a transaction to update sample + create result atomically
   const updated = await prisma.$transaction(
@@ -178,6 +217,7 @@ export const markProcessed = async (sampleId: string) => {
       if (!existingResult) {
         await tx.result.create({
           data: {
+            tenantId: env.DEFAULT_TENANT_ID,
             testOrderId: updatedSample.testOrderId,
             value: '',
             status: 'PENDING',
@@ -189,6 +229,16 @@ export const markProcessed = async (sampleId: string) => {
     },
     { timeout: 15000 },
   );
+
+  // Emit event
+  await eventBus.emit({
+    type: EVENTS.SAMPLE_PROCESSED,
+    tenantId: env.DEFAULT_TENANT_ID,
+    entity: 'Sample',
+    entityId: sampleId,
+    userId,
+    payload: { testOrderId: updated.testOrderId },
+  });
 
   return updated;
 };
@@ -233,17 +283,27 @@ export const recordSampleCollection = async (
     notes: data.notes || undefined,
   });
 
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: recordedByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.SAMPLE_COLLECTED,
-      entity: 'Sample',
-      entityId: sampleId,
-      newValue: {
-        status: updatedSample.status,
-        collectedAt: updatedSample.collectedAt,
-      },
+  // Audit log
+  await createAuditLog({
+    userId: recordedByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.SAMPLE_COLLECTED,
+    entity: 'Sample',
+    entityId: sampleId,
+    newValue: { status: updatedSample.status, collectedAt: updatedSample.collectedAt },
+  });
+
+  // Emit event
+  await eventBus.emit({
+    type: EVENTS.SAMPLE_COLLECTED,
+    tenantId: env.DEFAULT_TENANT_ID,
+    entity: 'Sample',
+    entityId: sampleId,
+    userId: recordedByUserId,
+    payload: {
+      visitId: (existingSample as Record<string, unknown>)?.testOrder
+        ? (((existingSample as Record<string, unknown>).testOrder as Record<string, unknown>)
+            .visitId as string)
+        : '',
     },
   });
 
@@ -280,19 +340,24 @@ export const rejectSample = async (
     notes: data.notes || undefined,
   });
 
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: rejectedByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.SAMPLE_REJECTED,
-      entity: 'Sample',
-      entityId: sampleId,
-      oldValue: { status: existingSample.status },
-      newValue: {
-        status: updatedSample.status,
-        rejectionReason: data.rejectionReason,
-      },
-    },
+  // Audit log
+  await createAuditLog({
+    userId: rejectedByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.SAMPLE_REJECTED,
+    entity: 'Sample',
+    entityId: sampleId,
+    oldValue: { status: existingSample.status },
+    newValue: { status: updatedSample.status, rejectionReason: data.rejectionReason },
+  });
+
+  // Emit event
+  await eventBus.emit({
+    type: EVENTS.SAMPLE_REJECTED,
+    tenantId: env.DEFAULT_TENANT_ID,
+    entity: 'Sample',
+    entityId: sampleId,
+    userId: rejectedByUserId,
+    payload: { rejectionReason: data.rejectionReason },
   });
 
   return updatedSample;
@@ -313,37 +378,31 @@ export const updateSampleStatus = async (
     throw new NotFoundError('Sample not found');
   }
 
-  // Prevent invalid state transitions
-  const validTransitions: Record<SampleStatus, SampleStatus[]> = {
-    [SampleStatus.PENDING_COLLECTION]: [SampleStatus.COLLECTED, SampleStatus.REJECTED],
-    [SampleStatus.COLLECTED]: [SampleStatus.IN_LAB, SampleStatus.REJECTED],
-    [SampleStatus.IN_LAB]: [SampleStatus.PROCESSED, SampleStatus.REJECTED],
-    [SampleStatus.PROCESSED]: [],
-    [SampleStatus.REJECTED]: [],
-  };
-
-  if (
-    existingSample.status !== data.status &&
-    !validTransitions[existingSample.status as SampleStatus].includes(data.status)
-  ) {
-    throw new ConflictError(
-      `Cannot transition sample from ${existingSample.status} to ${data.status}`,
+  // Use state machine instead of hardcoded validTransitions
+  if (existingSample.status !== data.status) {
+    await sampleMachine.transition(
+      existingSample.status as SampleState,
+      data.status as SampleState,
+      {
+        entityId: sampleId,
+        userId: updatedByUserId,
+        role: 'LAB_TECHNICIAN',
+        tenantId: env.DEFAULT_TENANT_ID,
+      },
     );
   }
 
   // Update status
   const updatedSample = await sampleRepository.updateStatus(sampleId, data.status);
 
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: updatedByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.SAMPLE_STATUS_UPDATED,
-      entity: 'Sample',
-      entityId: sampleId,
-      oldValue: { status: existingSample.status },
-      newValue: { status: updatedSample.status },
-    },
+  // Audit log
+  await createAuditLog({
+    userId: updatedByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.SAMPLE_STATUS_UPDATED,
+    entity: 'Sample',
+    entityId: sampleId,
+    oldValue: { status: existingSample.status },
+    newValue: { status: updatedSample.status },
   });
 
   return updatedSample;

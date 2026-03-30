@@ -9,6 +9,7 @@ import {
   BulkCreateTestOrderInput,
 } from './testOrder.validators.js';
 import { TestOrderWithRelations } from './testOrder.repository.js';
+import { env } from '../../config/env.js';
 
 const MAX_SERIALIZABLE_RETRIES = 3;
 
@@ -55,6 +56,7 @@ export const createTestOrder = async (
   try {
     return await testOrderRepository.create({
       ...data,
+      tenantId: env.DEFAULT_TENANT_ID,
       notes: data.notes ?? undefined,
     });
   } catch (error) {
@@ -128,6 +130,7 @@ export const bulkCreateTestOrders = async (
             tests.map((test) =>
               tx.testOrder.create({
                 data: {
+                  tenantId: env.DEFAULT_TENANT_ID,
                   visitId,
                   testId: test.testId,
                   priority: test.priority,

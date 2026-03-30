@@ -1,5 +1,4 @@
 import * as resultRepository from './result.repository.js';
-import * as reportRepository from '../report/report.repository.js';
 import { ConflictError, NotFoundError } from '../../shared/errors/AppError.js';
 import { PaginationParams } from '../../shared/types/common.types.js';
 import { prisma } from '../../config/database.js';
@@ -11,6 +10,12 @@ import {
   RejectResultInput,
 } from './result.validators.js';
 import { ResultStatus } from '@prisma/client';
+import { createStateMachine, RESULT_WORKFLOW, ResultState } from '../../core/state-machine.js';
+import { eventBus, EVENTS } from '../../core/event-bus.js';
+import { createAuditLog } from '../../shared/utils/audit.js';
+import { env } from '../../config/env.js';
+
+const resultMachine = createStateMachine<ResultState>(RESULT_WORKFLOW);
 
 /**
  * Create a result placeholder for a test order
@@ -33,7 +38,7 @@ export const createResult = async (data: CreateResultInput) => {
   }
 
   // Create result
-  const result = await resultRepository.create(data);
+  const result = await resultRepository.create({ ...data, tenantId: env.DEFAULT_TENANT_ID });
 
   return result;
 };
@@ -84,16 +89,18 @@ export const enterResult = async (
   data: EnterResultInput,
   enteredByUserId: string,
 ) => {
-  // Verify result exists
   const existingResult = await resultRepository.findById(resultId);
   if (!existingResult) {
     throw new NotFoundError('Result not found');
   }
 
-  // Check that result is in initial state
-  if (existingResult.status !== ResultStatus.PENDING) {
-    throw new ConflictError(`Cannot enter result for result in ${existingResult.status} status`);
-  }
+  // Use state machine
+  await resultMachine.transition(existingResult.status as ResultState, 'ENTERED', {
+    entityId: resultId,
+    userId: enteredByUserId,
+    role: 'LAB_TECHNICIAN',
+    tenantId: env.DEFAULT_TENANT_ID,
+  });
 
   // Update result with values
   const updatedResult = await resultRepository.update(resultId, {
@@ -107,19 +114,35 @@ export const enterResult = async (
     enteredAt: new Date(),
   });
 
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: enteredByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.RESULT_ENTERED,
-      entity: 'Result',
-      entityId: resultId,
-      newValue: {
-        status: updatedResult.status,
-        value: updatedResult.value,
-        isAbnormal: updatedResult.isAbnormal,
-      },
+  // Audit
+  await createAuditLog({
+    userId: enteredByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.RESULT_ENTERED,
+    entity: 'Result',
+    entityId: resultId,
+    newValue: {
+      status: updatedResult.status,
+      value: updatedResult.value,
+      isAbnormal: updatedResult.isAbnormal,
     },
+  });
+
+  // Domain event — notifies pathologists
+  const testName = (updatedResult as Record<string, unknown>).testOrder
+    ? ((updatedResult as Record<string, unknown>).testOrder as Record<string, unknown>).test
+      ? ((
+          ((updatedResult as Record<string, unknown>).testOrder as Record<string, unknown>)
+            .test as Record<string, unknown>
+        ).name as string)
+      : 'Test'
+    : 'Test';
+  await eventBus.emit({
+    type: EVENTS.RESULT_ENTERED,
+    tenantId: env.DEFAULT_TENANT_ID,
+    entity: 'Result',
+    entityId: resultId,
+    userId: enteredByUserId,
+    payload: { testName, value: data.value, isAbnormal: data.isAbnormal },
   });
 
   return updatedResult;
@@ -135,18 +158,18 @@ export const verifyResult = async (
   data: VerifyResultInput,
   verifiedByUserId: string,
 ) => {
-  // Verify result exists
   const existingResult = await resultRepository.findById(resultId);
   if (!existingResult) {
     throw new NotFoundError('Result not found');
   }
 
-  // Check that result is ENTERED and ready for verification
-  if (existingResult.status !== ResultStatus.ENTERED) {
-    throw new ConflictError(
-      `Cannot verify result in ${existingResult.status} status. Result must be ENTERED.`,
-    );
-  }
+  // Use state machine
+  await resultMachine.transition(existingResult.status as ResultState, 'VERIFIED', {
+    entityId: resultId,
+    userId: verifiedByUserId,
+    role: 'PATHOLOGIST',
+    tenantId: env.DEFAULT_TENANT_ID,
+  });
 
   // Check that result has values
   if (!existingResult.value) {
@@ -162,68 +185,29 @@ export const verifyResult = async (
     verifiedAt: new Date(),
   });
 
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: verifiedByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.RESULT_VERIFIED,
-      entity: 'Result',
-      entityId: resultId,
-      newValue: {
-        status: updatedResult.status,
-        verifiedAt: updatedResult.verifiedAt,
-        isAbnormal: updatedResult.isAbnormal,
-      },
+  // Audit
+  await createAuditLog({
+    userId: verifiedByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.RESULT_VERIFIED,
+    entity: 'Result',
+    entityId: resultId,
+    newValue: {
+      status: updatedResult.status,
+      verifiedAt: updatedResult.verifiedAt,
+      isAbnormal: updatedResult.isAbnormal,
     },
   });
 
-  // Auto-create report when ALL results for the visit are verified
-  try {
-    const visitId = updatedResult.testOrder?.visit?.id;
-    if (visitId) {
-      // Check if all test orders for this visit have verified results
-      const testOrders = await prisma.testOrder.findMany({
-        where: { visitId, deletedAt: null },
-        include: { result: true },
-      });
-
-      const allVerified =
-        testOrders.length > 0 &&
-        testOrders.every((to) => to.result && to.result.status === ResultStatus.VERIFIED);
-
-      if (allVerified) {
-        // Check if report already exists
-        const existingReport = await reportRepository.findByVisitId(visitId);
-        if (!existingReport) {
-          // Generate report number
-          const today = new Date();
-          const dateStr =
-            today.getFullYear().toString() +
-            (today.getMonth() + 1).toString().padStart(2, '0') +
-            today.getDate().toString().padStart(2, '0');
-          const prefix = `CD-RPT-${dateStr}`;
-          const lastReport = await prisma.report.findFirst({
-            where: { reportNumber: { startsWith: prefix } },
-            orderBy: { reportNumber: 'desc' },
-          });
-          let sequence = 1;
-          if (lastReport) {
-            const parts = lastReport.reportNumber.split('-');
-            sequence = parseInt(parts[parts.length - 1], 10) + 1;
-          }
-          const reportNumber = `${prefix}-${sequence.toString().padStart(4, '0')}`;
-
-          await reportRepository.create({
-            visitId,
-            reportNumber,
-            notes: 'Auto-created after all results verified',
-          });
-        }
-      }
-    }
-  } catch {
-    // Don't fail the verify if auto-report creation fails
-  }
+  // Domain event — triggers auto-report creation + visit completion via event handler
+  const visitId = updatedResult.testOrder?.visit?.id ?? '';
+  await eventBus.emit({
+    type: EVENTS.RESULT_VERIFIED,
+    tenantId: env.DEFAULT_TENANT_ID,
+    entity: 'Result',
+    entityId: resultId,
+    userId: verifiedByUserId,
+    payload: { visitId },
+  });
 
   return updatedResult;
 };
@@ -237,43 +221,47 @@ export const rejectResult = async (
   data: RejectResultInput,
   rejectedByUserId: string,
 ) => {
-  // Verify result exists
   const existingResult = await resultRepository.findById(resultId);
   if (!existingResult) {
     throw new NotFoundError('Result not found');
   }
 
-  // Can only reject ENTERED results
-  if (existingResult.status !== ResultStatus.ENTERED) {
-    throw new ConflictError(
-      `Cannot reject result in ${existingResult.status} status. Only ENTERED results can be rejected.`,
-    );
-  }
+  // Use state machine
+  await resultMachine.transition(existingResult.status as ResultState, 'REJECTED', {
+    entityId: resultId,
+    userId: rejectedByUserId,
+    role: 'PATHOLOGIST',
+    tenantId: env.DEFAULT_TENANT_ID,
+  });
 
   // Update result as rejected
   const updatedResult = await resultRepository.update(resultId, {
     status: ResultStatus.REJECTED,
     rejectionReason: data.rejectionReason,
-    // Reset values so lab tech can re-enter
     value: '',
     remarks: null,
     enteredById: null,
     enteredAt: null,
   });
 
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: rejectedByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.RESULT_REJECTED,
-      entity: 'Result',
-      entityId: resultId,
-      oldValue: { status: existingResult.status },
-      newValue: {
-        status: updatedResult.status,
-        rejectionReason: data.rejectionReason,
-      },
-    },
+  // Audit
+  await createAuditLog({
+    userId: rejectedByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.RESULT_REJECTED,
+    entity: 'Result',
+    entityId: resultId,
+    oldValue: { status: existingResult.status },
+    newValue: { status: updatedResult.status, rejectionReason: data.rejectionReason },
+  });
+
+  // Domain event
+  await eventBus.emit({
+    type: EVENTS.RESULT_REJECTED,
+    tenantId: env.DEFAULT_TENANT_ID,
+    entity: 'Result',
+    entityId: resultId,
+    userId: rejectedByUserId,
+    payload: { rejectionReason: data.rejectionReason },
   });
 
   return updatedResult;
@@ -315,18 +303,13 @@ export const reEnterResult = async (
     rejectionReason: null,
   });
 
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: enteredByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.RESULT_ENTERED,
-      entity: 'Result',
-      entityId: resultId,
-      newValue: {
-        status: updatedResult.status,
-        value: updatedResult.value,
-      },
-    },
+  // Audit
+  await createAuditLog({
+    userId: enteredByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.RESULT_ENTERED,
+    entity: 'Result',
+    entityId: resultId,
+    newValue: { status: updatedResult.status, value: updatedResult.value },
   });
 
   return updatedResult;

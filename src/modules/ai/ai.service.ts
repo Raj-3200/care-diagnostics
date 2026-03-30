@@ -9,6 +9,7 @@ import type {
   TaskStepDefinition,
 } from './ai.types.js';
 import { v4 as uuid } from 'uuid';
+import { eventBus, EVENTS } from '../../core/event-bus.js';
 
 // ════════════════════════════════════════════════════════════════════════════════
 //  CARE DIAGNOSTICS — Enterprise AI Assistant Service
@@ -358,6 +359,7 @@ async function executeAction(
 
         const patient = await prisma.patient.create({
           data: {
+            tenantId: env.DEFAULT_TENANT_ID,
             mrn: `CD-${new Date().getFullYear()}-${String(await getNextMRNSequence()).padStart(5, '0')}`,
             firstName: (payload.firstName as string).trim(),
             lastName: (payload.lastName as string).trim(),
@@ -374,6 +376,22 @@ async function executeAction(
         });
 
         await logAudit(userId, 'PATIENT_REGISTERED', 'Patient', patient.id, null, patient);
+
+        // Emit domain event for real-time updates
+        eventBus
+          .emit({
+            type: EVENTS.VISIT_CREATED,
+            tenantId: env.DEFAULT_TENANT_ID,
+            entity: 'Patient',
+            entityId: patient.id,
+            userId,
+            payload: {
+              mrn: patient.mrn,
+              name: `${patient.firstName} ${patient.lastName}`,
+              source: 'ai-assistant',
+            },
+          })
+          .catch(() => {});
 
         return {
           success: true,
@@ -423,6 +441,7 @@ async function executeAction(
 
         const visit = await prisma.visit.create({
           data: {
+            tenantId: env.DEFAULT_TENANT_ID,
             visitNumber,
             patientId: patient.id,
             status: 'REGISTERED',
@@ -433,6 +452,22 @@ async function executeAction(
         });
 
         await logAudit(userId, 'VISIT_CREATED', 'Visit', visit.id, null, visit);
+
+        // Emit domain event
+        eventBus
+          .emit({
+            type: EVENTS.VISIT_CREATED,
+            tenantId: env.DEFAULT_TENANT_ID,
+            entity: 'Visit',
+            entityId: visit.id,
+            userId,
+            payload: {
+              visitNumber: visit.visitNumber,
+              patientId: patient.id,
+              source: 'ai-assistant',
+            },
+          })
+          .catch(() => {});
 
         return {
           success: true,
@@ -665,10 +700,16 @@ async function executeAction(
           };
         }
 
-        const created = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const created: any[] = [];
         for (const test of availableTests) {
           const testOrder = await prisma.testOrder.create({
-            data: { visitId: targetVisit.id, testId: test.id, priority: 'NORMAL' },
+            data: {
+              tenantId: env.DEFAULT_TENANT_ID,
+              visitId: targetVisit.id,
+              testId: test.id,
+              priority: 'NORMAL',
+            },
             include: { test: true },
           });
           created.push(testOrder);
@@ -745,6 +786,7 @@ async function executeAction(
 
         const invoice = await prisma.invoice.create({
           data: {
+            tenantId: env.DEFAULT_TENANT_ID,
             invoiceNumber,
             visitId: visit.id,
             totalAmount,

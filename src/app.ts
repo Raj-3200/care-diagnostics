@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env.js';
 import { requestLogger } from './middleware/requestLogger.js';
@@ -17,7 +18,9 @@ import reportRoutes from './modules/report/report.routes.js';
 import invoiceRoutes from './modules/invoice/invoice.routes.js';
 import healthRoutes from './modules/health/health.routes.js';
 import aiRoutes from './modules/ai/ai.routes.js';
+import notificationRoutes from './modules/notification/notification.routes.js';
 import { NotFoundError } from './shared/errors/AppError.js';
+import { setupSwagger } from './config/swagger.js';
 
 const app = express();
 
@@ -31,9 +34,12 @@ app.use(helmet());
 app.use(
   cors({
     origin: allowAllOrigins ? true : allowedOrigins,
-    credentials: !allowAllOrigins,
+    credentials: true, // Always true for cookie-based auth
   }),
 );
+
+// Cookie parser (before routes, for httpOnly token auth)
+app.use(cookieParser());
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -53,6 +59,9 @@ app.use(limiter);
 // Request logging
 app.use(requestLogger);
 
+// Swagger API docs
+setupSwagger(app);
+
 // API Routes
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
@@ -66,6 +75,7 @@ app.use('/api/v1/results', resultRoutes);
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // 404 handler
 app.use((req: Request, _res: Response) => {

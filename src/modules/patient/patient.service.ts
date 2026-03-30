@@ -5,6 +5,7 @@ import { prisma } from '../../config/database.js';
 import { CONSTANTS } from '../../config/constants.js';
 import { generateMRN } from '../../shared/utils/generateMRN.js';
 import { CreatePatientInput, UpdatePatientInput } from './patient.validators.js';
+import { env } from '../../config/env.js';
 
 /**
  * Register a new patient with auto-generated MRN
@@ -42,6 +43,7 @@ export const registerPatient = async (data: CreatePatientInput, registeredByUser
   // Create patient
   const patient = await patientRepository.create({
     ...data,
+    tenantId: env.DEFAULT_TENANT_ID,
     mrn,
     dateOfBirth: new Date(data.dateOfBirth),
     registeredById: registeredByUserId,

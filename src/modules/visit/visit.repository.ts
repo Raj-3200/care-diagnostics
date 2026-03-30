@@ -71,6 +71,7 @@ export const findAll = async (
 };
 
 export const create = async (data: {
+  tenantId: string;
   visitNumber: string;
   patientId: string;
   createdById: string;

@@ -65,6 +65,7 @@ export const findAll = async (params: {
 };
 
 export const create = async (data: {
+  tenantId: string;
   visitId: string;
   invoiceNumber: string;
   totalAmount: number;
@@ -77,6 +78,7 @@ export const create = async (data: {
 }) => {
   return prisma.invoice.create({
     data: {
+      tenantId: data.tenantId,
       visitId: data.visitId,
       invoiceNumber: data.invoiceNumber,
       totalAmount: data.totalAmount,

@@ -50,6 +50,7 @@ export const findAll = async (
 };
 
 export const create = async (data: {
+  tenantId: string;
   email: string;
   password: string;
   firstName: string;

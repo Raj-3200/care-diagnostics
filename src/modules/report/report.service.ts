@@ -4,6 +4,12 @@ import { prisma } from '../../config/database.js';
 import { CONSTANTS } from '../../config/constants.js';
 import { NotFoundError, ConflictError, ValidationError } from '../../shared/errors/AppError.js';
 import { ReportStatus, ResultStatus } from '@prisma/client';
+import { createStateMachine, REPORT_WORKFLOW, ReportState } from '../../core/state-machine.js';
+import { eventBus, EVENTS } from '../../core/event-bus.js';
+import { createAuditLog } from '../../shared/utils/audit.js';
+import { env } from '../../config/env.js';
+
+const reportMachine = createStateMachine<ReportState>(REPORT_WORKFLOW);
 
 // Auto-generate report number: CD-RPT-YYYYMMDD-XXXX
 const generateReportNumber = async (): Promise<string> => {
@@ -48,20 +54,19 @@ export const createReport = async (visitId: string, notes: string | undefined, u
   const reportNumber = await generateReportNumber();
 
   const report = await reportRepository.create({
+    tenantId: env.DEFAULT_TENANT_ID,
     visitId,
     reportNumber,
     notes,
   });
 
   // Audit log
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: CONSTANTS.AUDIT_ACTIONS.REPORT_GENERATED,
-      entity: 'Report',
-      entityId: report.id,
-      newValue: { reportNumber, visitId },
-    },
+  await createAuditLog({
+    userId,
+    action: CONSTANTS.AUDIT_ACTIONS.REPORT_GENERATED,
+    entity: 'Report',
+    entityId: report.id,
+    newValue: { reportNumber, visitId },
   });
 
   return report;
@@ -126,11 +131,13 @@ export const generateReport = async (
     throw new NotFoundError('Report not found');
   }
 
-  if (report.status !== ReportStatus.PENDING) {
-    throw new ValidationError(
-      `Cannot generate report in ${report.status} status. Must be PENDING.`,
-    );
-  }
+  // Use state machine
+  await reportMachine.transition(report.status as ReportState, 'GENERATED', {
+    entityId: id,
+    userId,
+    role: 'LAB_TECHNICIAN',
+    tenantId: env.DEFAULT_TENANT_ID,
+  });
 
   // Ensure test orders with results all have them verified
   const testOrders = report.visit.testOrders;
@@ -176,6 +183,18 @@ export const generateReport = async (
       },
     });
 
+    // Emit event after transaction
+    eventBus
+      .emit({
+        type: EVENTS.REPORT_GENERATED,
+        tenantId: env.DEFAULT_TENANT_ID,
+        entity: 'Report',
+        entityId: id,
+        userId,
+        payload: { reportNumber: report.reportNumber, visitId: report.visitId },
+      })
+      .catch(() => {});
+
     return updated;
   });
 };
@@ -190,11 +209,13 @@ export const approveReport = async (id: string, notes: string | undefined, userI
     throw new NotFoundError('Report not found');
   }
 
-  if (report.status !== ReportStatus.GENERATED) {
-    throw new ValidationError(
-      `Cannot approve report in ${report.status} status. Must be GENERATED.`,
-    );
-  }
+  // Use state machine
+  await reportMachine.transition(report.status as ReportState, 'APPROVED', {
+    entityId: id,
+    userId,
+    role: 'PATHOLOGIST',
+    tenantId: env.DEFAULT_TENANT_ID,
+  });
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.report.update({
@@ -219,6 +240,18 @@ export const approveReport = async (id: string, notes: string | undefined, userI
       },
     });
 
+    // Emit event — triggers notifications
+    eventBus
+      .emit({
+        type: EVENTS.REPORT_APPROVED,
+        tenantId: env.DEFAULT_TENANT_ID,
+        entity: 'Report',
+        entityId: id,
+        userId,
+        payload: { reportNumber: report.reportNumber, visitId: report.visitId },
+      })
+      .catch(() => {});
+
     return updated;
   });
 };
@@ -232,11 +265,13 @@ export const dispatchReport = async (id: string, notes: string | undefined, user
     throw new NotFoundError('Report not found');
   }
 
-  if (report.status !== ReportStatus.APPROVED) {
-    throw new ValidationError(
-      `Cannot dispatch report in ${report.status} status. Must be APPROVED.`,
-    );
-  }
+  // Use state machine
+  await reportMachine.transition(report.status as ReportState, 'DISPATCHED', {
+    entityId: id,
+    userId,
+    role: 'RECEPTIONIST',
+    tenantId: env.DEFAULT_TENANT_ID,
+  });
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.report.update({
@@ -259,6 +294,18 @@ export const dispatchReport = async (id: string, notes: string | undefined, user
       },
     });
 
+    // Emit event
+    eventBus
+      .emit({
+        type: EVENTS.REPORT_DISPATCHED,
+        tenantId: env.DEFAULT_TENANT_ID,
+        entity: 'Report',
+        entityId: id,
+        userId,
+        payload: { reportNumber: report.reportNumber, visitId: report.visitId },
+      })
+      .catch(() => {});
+
     return updated;
   });
 };
@@ -280,13 +327,11 @@ export const deleteReport = async (id: string, userId: string) => {
 
   await reportRepository.softDelete(id);
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: CONSTANTS.AUDIT_ACTIONS.REPORT_DELETED,
-      entity: 'Report',
-      entityId: id,
-      oldValue: { reportNumber: report.reportNumber, status: report.status },
-    },
+  await createAuditLog({
+    userId,
+    action: CONSTANTS.AUDIT_ACTIONS.REPORT_DELETED,
+    entity: 'Report',
+    entityId: id,
+    oldValue: { reportNumber: report.reportNumber, status: report.status },
   });
 };

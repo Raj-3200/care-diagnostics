@@ -9,15 +9,22 @@ export const authenticate = (
   next: NextFunction,
 ): void => {
   try {
-    const authHeader = req.headers.authorization;
+    // 1. Check httpOnly cookie first (preferred, secure)
+    let token: string | undefined = req.cookies?.accessToken;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // 2. Fallback to Authorization header (for API clients / mobile)
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    if (!token) {
       throw new UnauthorizedError('No token provided');
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     const payload = verifyAccessToken(token);
-
     req.user = payload;
     next();
   } catch (error) {

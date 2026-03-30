@@ -75,12 +75,14 @@ export const findAll = async (params: {
 };
 
 export const create = async (data: {
+  tenantId: string;
   visitId: string;
   reportNumber: string;
   notes?: string | null;
 }) => {
   return prisma.report.create({
     data: {
+      tenantId: data.tenantId,
       visitId: data.visitId,
       reportNumber: data.reportNumber,
       notes: data.notes ?? undefined,

@@ -49,6 +49,7 @@ export const findAll = async (
 };
 
 export const create = async (data: {
+  tenantId: string;
   code: string;
   name: string;
   description?: string;

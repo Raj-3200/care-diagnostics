@@ -1,6 +1,9 @@
+import { createServer } from 'http';
 import app from './app.js';
 import { env } from './config/env.js';
 import { prisma, disconnect } from './config/database.js';
+import { initWebSocket } from './core/websocket.js';
+import { registerEventHandlers } from './core/event-handlers.js';
 
 const startServer = async () => {
   try {
@@ -8,11 +11,21 @@ const startServer = async () => {
     await prisma.$connect();
     console.log('✅ Database connected successfully');
 
+    // Register domain event handlers (automation)
+    registerEventHandlers();
+
+    // Create HTTP server (shared with Socket.IO)
+    const httpServer = createServer(app);
+
+    // Initialize WebSocket
+    initWebSocket(httpServer);
+
     // Start server
-    const server = app.listen(env.PORT, () => {
+    httpServer.listen(env.PORT, () => {
       console.log(`🚀 Server is running on port ${env.PORT}`);
       console.log(`📦 Environment: ${env.NODE_ENV}`);
       console.log(`🔗 API Base URL: http://localhost:${env.PORT}/api/v1`);
+      console.log(`🔌 WebSocket: ws://localhost:${env.PORT}`);
     });
 
     // Graceful shutdown
@@ -26,7 +39,7 @@ const startServer = async () => {
 
       console.log(`\n${signal} received. Starting graceful shutdown...`);
 
-      server.close(() => {
+      httpServer.close(() => {
         console.log('🛑 HTTP server closed');
 
         void disconnect()

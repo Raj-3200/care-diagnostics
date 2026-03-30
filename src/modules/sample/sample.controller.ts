@@ -74,7 +74,7 @@ export const receiveInLab = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const sample = await sampleService.receiveInLab(id);
+    const sample = await sampleService.receiveInLab(id, req.user?.userId ?? '');
     sendSuccess(res, sample);
   } catch (error) {
     next(error);
@@ -95,7 +95,7 @@ export const markProcessed = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const sample = await sampleService.markProcessed(id);
+    const sample = await sampleService.markProcessed(id, req.user?.userId ?? '');
     sendSuccess(res, sample);
   } catch (error) {
     next(error);

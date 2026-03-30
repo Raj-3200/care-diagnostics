@@ -51,6 +51,7 @@ export const findAll = async (
 };
 
 export const create = async (data: {
+  tenantId: string;
   mrn: string;
   firstName: string;
   lastName: string;

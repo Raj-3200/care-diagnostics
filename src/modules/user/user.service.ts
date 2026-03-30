@@ -5,6 +5,7 @@ import { PaginationParams } from '../../shared/types/common.types.js';
 import { prisma } from '../../config/database.js';
 import { CONSTANTS } from '../../config/constants.js';
 import { CreateUserInput, UpdateUserInput } from './user.validators.js';
+import { env } from '../../config/env.js';
 
 export const createUser = async (data: CreateUserInput, createdByUserId?: string) => {
   // Check for duplicate email
@@ -19,6 +20,7 @@ export const createUser = async (data: CreateUserInput, createdByUserId?: string
   // Create user
   const user = await userRepository.create({
     ...data,
+    tenantId: env.DEFAULT_TENANT_ID,
     password: hashedPassword,
   });
 

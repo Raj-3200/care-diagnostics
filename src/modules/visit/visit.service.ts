@@ -5,6 +5,12 @@ import { prisma } from '../../config/database.js';
 import { CONSTANTS } from '../../config/constants.js';
 import { CreateVisitInput, UpdateVisitInput } from './visit.validators.js';
 import { VisitStatus } from '@prisma/client';
+import { createStateMachine, VISIT_WORKFLOW, VisitState } from '../../core/state-machine.js';
+import { eventBus, EVENTS } from '../../core/event-bus.js';
+import { createAuditLog } from '../../shared/utils/audit.js';
+import { env } from '../../config/env.js';
+
+const visitMachine = createStateMachine<VisitState>(VISIT_WORKFLOW);
 
 /**
  * Generate unique visit number in format: CD-VIS-YYYYMMDD-XXXX
@@ -53,24 +59,32 @@ export const createVisit = async (data: CreateVisitInput, createdByUserId: strin
 
   // Create visit
   const visit = await visitRepository.create({
+    tenantId: env.DEFAULT_TENANT_ID,
     visitNumber,
     patientId: data.patientId,
     createdById: createdByUserId,
     notes: data.notes || undefined,
   });
 
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: createdByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.VISIT_CREATED,
-      entity: 'Visit',
-      entityId: visit.id,
-      newValue: {
-        visitNumber: visit.visitNumber,
-        patientId: visit.patientId,
-        status: visit.status,
-      },
+  // Audit + domain event
+  await createAuditLog({
+    userId: createdByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.VISIT_CREATED,
+    entity: 'Visit',
+    entityId: visit.id,
+    newValue: { visitNumber: visit.visitNumber, patientId: visit.patientId, status: visit.status },
+  });
+
+  await eventBus.emit({
+    type: EVENTS.VISIT_CREATED,
+    tenantId: patient.tenantId ?? env.DEFAULT_TENANT_ID,
+    entity: 'Visit',
+    entityId: visit.id,
+    userId: createdByUserId,
+    payload: {
+      visitNumber: visit.visitNumber,
+      patientId: visit.patientId,
+      patientName: `${patient.firstName} ${patient.lastName}`,
     },
   });
 
@@ -141,6 +155,7 @@ export const updateVisitStatus = async (
   visitId: string,
   newStatus: VisitStatus,
   updatedByUserId: string,
+  role: string = 'ADMIN',
 ) => {
   // Verify visit exists
   const existingVisit = await visitRepository.findById(visitId);
@@ -148,35 +163,35 @@ export const updateVisitStatus = async (
     throw new NotFoundError('Visit not found');
   }
 
-  // Prevent state machine violations (simple check)
-  const validTransitions: Record<VisitStatus, VisitStatus[]> = {
-    [VisitStatus.REGISTERED]: [VisitStatus.SAMPLES_COLLECTED, VisitStatus.CANCELLED],
-    [VisitStatus.SAMPLES_COLLECTED]: [VisitStatus.IN_PROGRESS, VisitStatus.CANCELLED],
-    [VisitStatus.IN_PROGRESS]: [VisitStatus.COMPLETED, VisitStatus.CANCELLED],
-    [VisitStatus.COMPLETED]: [],
-    [VisitStatus.CANCELLED]: [],
-  };
-
-  if (
-    existingVisit.status !== newStatus &&
-    !validTransitions[existingVisit.status as VisitStatus].includes(newStatus)
-  ) {
-    throw new ConflictError(`Cannot transition from ${existingVisit.status} to ${newStatus}`);
-  }
+  // Use state machine for validation (replaces hardcoded validTransitions)
+  await visitMachine.transition(existingVisit.status as VisitState, newStatus as VisitState, {
+    entityId: visitId,
+    userId: updatedByUserId,
+    role,
+    tenantId: env.DEFAULT_TENANT_ID,
+  });
 
   // Update status
   const updatedVisit = await visitRepository.updateStatus(visitId, newStatus);
 
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: updatedByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.VISIT_UPDATED,
-      entity: 'Visit',
-      entityId: visitId,
-      oldValue: { status: existingVisit.status },
-      newValue: { status: updatedVisit.status },
-    },
+  // Audit log
+  await createAuditLog({
+    userId: updatedByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.VISIT_UPDATED,
+    entity: 'Visit',
+    entityId: visitId,
+    oldValue: { status: existingVisit.status },
+    newValue: { status: updatedVisit.status },
+  });
+
+  // Domain event
+  await eventBus.emit({
+    type: EVENTS.VISIT_STATUS_CHANGED,
+    tenantId: env.DEFAULT_TENANT_ID,
+    entity: 'Visit',
+    entityId: visitId,
+    userId: updatedByUserId,
+    payload: { oldStatus: existingVisit.status, newStatus: updatedVisit.status },
   });
 
   return updatedVisit;
@@ -208,16 +223,14 @@ export const updateVisit = async (
   // Update visit
   const updatedVisit = await visitRepository.update(visitId, updateData);
 
-  // Create audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: updatedByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.VISIT_UPDATED,
-      entity: 'Visit',
-      entityId: visitId,
-      oldValue: existingVisit,
-      newValue: updatedVisit,
-    },
+  // Audit log
+  await createAuditLog({
+    userId: updatedByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.VISIT_UPDATED,
+    entity: 'Visit',
+    entityId: visitId,
+    oldValue: existingVisit as unknown as Record<string, unknown>,
+    newValue: updatedVisit as unknown as Record<string, unknown>,
   });
 
   return updatedVisit;
@@ -249,13 +262,11 @@ export const deleteVisit = async (visitId: string, deletedByUserId: string) => {
   await visitRepository.softDelete(visitId);
 
   // Audit log
-  await prisma.auditLog.create({
-    data: {
-      userId: deletedByUserId,
-      action: CONSTANTS.AUDIT_ACTIONS.VISIT_UPDATED,
-      entity: 'Visit',
-      entityId: visitId,
-      newValue: { status: 'DELETED' },
-    },
+  await createAuditLog({
+    userId: deletedByUserId,
+    action: CONSTANTS.AUDIT_ACTIONS.VISIT_UPDATED,
+    entity: 'Visit',
+    entityId: visitId,
+    newValue: { status: 'DELETED' },
   });
 };

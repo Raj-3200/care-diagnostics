@@ -52,9 +52,10 @@ export const findAll = async (
   return { results, total };
 };
 
-export const create = async (data: { testOrderId: string; value?: string }) => {
+export const create = async (data: { tenantId: string; testOrderId: string; value?: string }) => {
   return prisma.result.create({
     data: {
+      tenantId: data.tenantId,
       testOrderId: data.testOrderId,
       value: data.value || '',
     },

@@ -4,6 +4,7 @@ import { PaginationParams } from '../../shared/types/common.types.js';
 import { prisma } from '../../config/database.js';
 import { CreateTestInput, UpdateTestInput } from './test.validators.js';
 import { TestCategory } from '@prisma/client';
+import { env } from '../../config/env.js';
 
 /**
  * Create a new test definition
@@ -19,6 +20,7 @@ export const createTest = async (data: CreateTestInput) => {
 
   // Create test
   const test = await testRepository.create({
+    tenantId: env.DEFAULT_TENANT_ID,
     code: data.code,
     name: data.name,
     category: data.category,

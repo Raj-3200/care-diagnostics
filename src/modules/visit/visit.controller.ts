@@ -157,7 +157,12 @@ export const updateVisitStatus = async (
       throw new Error('User not authenticated');
     }
 
-    const visit = await visitService.updateVisitStatus(id, body.status, req.user.userId);
+    const visit = await visitService.updateVisitStatus(
+      id,
+      body.status,
+      req.user.userId,
+      req.user.role,
+    );
     sendSuccess(res, visit, StatusCodes.OK);
   } catch (error) {
     next(error);

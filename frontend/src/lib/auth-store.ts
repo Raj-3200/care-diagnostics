@@ -19,28 +19,23 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
 
   login: async (credentials: LoginRequest) => {
+    // httpOnly cookies are set by the server response automatically
     const { data } = await api.post<ApiResponse<LoginResponse>>('/auth/login', credentials);
     if (data.success && data.data) {
-      localStorage.setItem('accessToken', data.data.tokens.accessToken);
-      localStorage.setItem('refreshToken', data.data.tokens.refreshToken);
       set({ user: data.data.user, isAuthenticated: true, isLoading: false });
     }
   },
 
   logout: () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    // Call server to revoke token & clear cookies
+    api.post('/auth/logout').catch(() => {});
     set({ user: null, isAuthenticated: false, isLoading: false });
     window.location.href = '/login';
   },
 
   loadUser: async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        set({ user: null, isAuthenticated: false, isLoading: false });
-        return;
-      }
+      // Cookie is sent automatically with withCredentials: true
       const { data } = await api.get<ApiResponse<User>>('/auth/me');
       if (data.success && data.data) {
         set({ user: data.data, isAuthenticated: true, isLoading: false });
@@ -48,8 +43,6 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ user: null, isAuthenticated: false, isLoading: false });
       }
     } catch {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
