@@ -1,4 +1,4 @@
-// Build: 3 — API proxy moved to runtime route (src/app/api/[...path]/route.ts)
+// Build: 4 — runtime proxy active, BACKEND_URL set via Vercel CLI
 import type { NextConfig } from 'next';
 
 const isVercel = !!process.env.VERCEL;
