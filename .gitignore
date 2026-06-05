@@ -1,65 +1,41 @@
 # ── Dependencies ──────────────────────────
 node_modules/
-.pnp
-.pnp.js
-yarn.lock
-pnpm-lock.yaml
 
 # ── Build Output ──────────────────────────
 dist/
-build/
 *.tsbuildinfo
-
-# ── Next.js ───────────────────────────────
-frontend/.next/
-frontend/out/
-frontend/.vercel/
 
 # ── Environment ───────────────────────────
 .env
 .env.local
 .env.*.local
-# Keep .env.example (not secret)
 !.env.example
-!frontend/.env.example
+
+# ── Vercel ────────────────────────────────
+.vercel/
 
 # ── Logs ──────────────────────────────────
 logs/
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
 
 # ── IDE ───────────────────────────────────
 .vscode/
 .idea/
 *.swp
-*.swo
 *~
 
 # ── OS ────────────────────────────────────
 .DS_Store
 Thumbs.db
-desktop.ini
 
 # ── Testing ───────────────────────────────
 coverage/
-*.lcov
-.nyc_output
+
+# ── Uploads (user files) ──────────────────
+uploads/*
+!uploads/.gitkeep
 
 # ── Temporary ─────────────────────────────
 tmp/
 temp/
-*.tmp
-
-# ── Docker ────────────────────────────────
-# (don't ignore docker files, they should be tracked)
-
-# ── Uploads (user files, not code) ────────
-uploads/*
-!uploads/.gitkeep
-
-# ── Prisma ────────────────────────────────
-# migrations tracked, generated client not
-prisma/generated/

@@ -1,87 +1,63 @@
 # Care Diagnostics — Backend API
 
-> **NestJS REST API** for the Care Diagnostics LIMS.
-> Deployed on **Northflank** | Frontend on Vercel
+> **Express/Node.js REST API** deployed on **Vercel** as serverless functions.
+> Frontend at: [care-diagnostics-frontend](https://github.com/Raj-3200/care-diagnostics-frontend)
 
 ## Stack
-- Node.js 20 · TypeScript · NestJS · Prisma ORM
-- PostgreSQL 16 · Redis 7 · JWT (HttpOnly cookies)
-- Docker (multi-stage, non-root, health check)
+- Node.js 20 · TypeScript · Express.js · Prisma ORM
+- PostgreSQL · Redis · JWT (HttpOnly cookies)
+- Deployed as Vercel Serverless Functions
 
 ---
 
-## Deploy on Northflank
+## 🚀 Deploy on Vercel (Backend API)
 
-### Step 1 — Add PostgreSQL & Redis
+### Step 1 — Import to Vercel
+1. Go to **[vercel.com/new](https://vercel.com/new)**
+2. Import `Raj-3200/care-diagnostics-backend`
+3. Framework preset: **Other** (not Next.js)
 
-In your Northflank project (`Care-Daignostics`):
-1. Click **"Deploy PostgreSQL"** → create addon → note the connection URL
-2. Click **"Deploy Redis"** → create addon → note the connection URL
+### Step 2 — Set Environment Variables
+In Vercel → Project → Settings → Environment Variables:
 
-### Step 2 — Deploy the Backend Service
+| Key | Value |
+|-----|-------|
+| `DATABASE_URL` | `postgresql://...` (from Supabase / Neon / PlanetScale) |
+| `REDIS_URL` | `redis://...` (from Upstash — free serverless Redis) |
+| `JWT_ACCESS_SECRET` | any 32+ random chars |
+| `JWT_REFRESH_SECRET` | any other 32+ random chars |
+| `JWT_ACCESS_EXPIRY` | `15m` |
+| `JWT_REFRESH_EXPIRY` | `7d` |
+| `CORS_ORIGIN` | `https://your-frontend.vercel.app` |
+| `NODE_ENV` | `production` |
 
-1. Click **"Deploy a repository"**
-2. Select `Raj-3200/care-diagnostics-backend`
-3. Northflank detects the `Dockerfile` automatically
-4. Set **Port** to `4000`
+### Step 3 — Deploy
+Click **Deploy** → Vercel runs `npm run vercel-build` (prisma generate + tsc) automatically.
 
-### Step 3 — Set Environment Variables
-
-In Northflank service → **"Environment"** tab:
-
-```env
-NODE_ENV=production
-PORT=4000
-DATABASE_URL=postgresql://...     ← from PostgreSQL addon
-REDIS_URL=redis://...             ← from Redis addon
-JWT_ACCESS_SECRET=                ← generate 32+ random chars
-JWT_REFRESH_SECRET=               ← generate 32+ random chars
-JWT_ACCESS_EXPIRY=15m
-JWT_REFRESH_EXPIRY=7d
-CORS_ORIGIN=https://your-app.vercel.app
-```
-
-### Step 4 — Run Database Seed (First time only)
-
-In Northflank service → **"Shell"** tab:
+### Step 4 — Run Migrations (first time only)
 ```bash
-npx prisma db seed
+# Install Vercel CLI
+npm i -g vercel
+
+# Run migration against your production DB
+DATABASE_URL="your-prod-db-url" npx prisma migrate deploy
+DATABASE_URL="your-prod-db-url" npx prisma db seed
 ```
 
-> Migrations run automatically on startup via the Dockerfile CMD.
-
-### Step 5 — Copy your backend URL
-
-Copy the public URL from Northflank (e.g. `https://care-backend-xxx.northflank.app`)
-→ Paste as `BACKEND_URL` in your Vercel frontend settings.
+### Step 5 — Connect Frontend
+Copy your Vercel backend URL (e.g. `https://care-backend.vercel.app`)
+→ Set as `BACKEND_URL` in your **frontend** Vercel project settings.
+→ Set as `CORS_ORIGIN` in your **backend** Vercel project settings (use frontend URL).
 
 ---
 
-## Environment Variables Reference
+## 🗄️ Recommended Free Databases
 
-```env
-# Database (from Northflank PostgreSQL addon)
-DATABASE_URL=postgresql://user:pass@host:5432/care_diagnostics
-
-# Cache (from Northflank Redis addon)
-REDIS_URL=redis://host:6379
-
-# JWT — generate strong random strings (min 32 chars)
-JWT_ACCESS_SECRET=your-access-secret-min-32-characters-here
-JWT_REFRESH_SECRET=your-refresh-secret-min-32-characters-here
-JWT_ACCESS_EXPIRY=15m
-JWT_REFRESH_EXPIRY=7d
-
-# Server
-PORT=4000
-NODE_ENV=production
-
-# CORS — set to your Vercel frontend URL
-CORS_ORIGIN=https://care-diagnostics.vercel.app
-
-# Optional — AI assistant
-ANTHROPIC_API_KEY=sk-ant-...
-```
+| Service | Type | Free Tier |
+|---------|------|-----------|
+| **[Neon](https://neon.tech)** | PostgreSQL | ✅ 0.5 GB |
+| **[Supabase](https://supabase.com)** | PostgreSQL | ✅ 500 MB |
+| **[Upstash](https://upstash.com)** | Redis | ✅ 10k req/day |
 
 ---
 
@@ -89,39 +65,30 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 ```bash
 npm install
-
-# Copy env file and fill in values
-cp .env.example .env
-
-# Start Postgres + Redis via Docker
-docker compose up postgres redis -d
-
-# Run migrations + seed
+cp .env.example .env   # fill in DATABASE_URL, JWT secrets etc.
 npx prisma migrate dev
 npx prisma db seed
-
-# Start dev server
-npm run dev   # → http://localhost:4000
+npm run dev            # → http://localhost:4000
 ```
-
-**Health check:** `GET http://localhost:4000/api/v1/health`
 
 ---
 
-## API Modules
+## API Endpoints
 
-| Module | Endpoints |
+| Module | Base Path |
 |--------|-----------|
-| Auth | `POST /api/v1/auth/login`, `/logout`, `/refresh`, `GET /me` |
-| Patients | `GET/POST /api/v1/patients` |
-| Visits | `GET/POST /api/v1/visits` |
-| Tests | `GET/POST /api/v1/tests` |
-| Samples | `GET/POST /api/v1/samples` |
-| Results | `GET/POST /api/v1/results` |
-| Reports | `GET/POST /api/v1/reports` |
-| Invoices | `GET/POST /api/v1/invoices` |
-| Users | `GET/POST /api/v1/users` |
 | Health | `GET /api/v1/health` |
+| Auth | `/api/v1/auth` |
+| Patients | `/api/v1/patients` |
+| Visits | `/api/v1/visits` |
+| Tests | `/api/v1/tests` |
+| Samples | `/api/v1/samples` |
+| Results | `/api/v1/results` |
+| Reports | `/api/v1/reports` |
+| Invoices | `/api/v1/invoices` |
+| Users | `/api/v1/users` |
+
+**API Docs:** `GET /api-docs` (Swagger UI)
 
 ---
 
