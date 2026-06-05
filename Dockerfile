@@ -1,41 +1,69 @@
-# ---- Backend Dockerfile ----
-FROM node:20-alpine AS base
+# ─────────────────────────────────────────────────────────────────────────────
+# Care Diagnostics — Backend Dockerfile (production-grade, multi-stage)
+# Works on: Back4App · Northflank · Railway · Render · any Docker host
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Install OpenSSL for Prisma
-RUN apk add --no-cache openssl
+# ── Stage 1: Install ALL dependencies + build ────────────────────────────────
+FROM node:20-alpine AS builder
+
+# OpenSSL required by Prisma on Alpine
+RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
-# Copy package files
+# Copy lockfile and package manifest
 COPY package.json package-lock.json ./
+
+# Copy Prisma schema first (needed for generate)
 COPY prisma ./prisma/
 
-# Install all dependencies (need devDeps for build)
-RUN npm ci
+# Install ALL deps (including devDeps needed for tsc + prisma CLI)
+RUN npm ci --prefer-offline
 
 # Generate Prisma client
 RUN npx prisma generate
 
-# Copy source code
+# Copy source and build
 COPY tsconfig.json ./
 COPY src ./src/
 
-# Build TypeScript
 RUN npx tsc
 
-# Remove dev dependencies
-RUN npm prune --production
+# ── Stage 2: Production image (lean) ─────────────────────────────────────────
+FROM node:20-alpine AS runner
 
-# Add non-root user for security
+RUN apk add --no-cache openssl libc6-compat wget
+
+WORKDIR /app
+
+# Copy only what's needed to run
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json ./
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+
+# Install PRODUCTION deps only + keep prisma CLI for migrations
+# prisma is in devDeps but needed at runtime for migrate deploy
+RUN npm ci --omit=dev --prefer-offline
+RUN npm install prisma --no-save --prefer-offline
+
+# Re-generate Prisma client in production context
+RUN npx prisma generate
+
+# Non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
 USER appuser
 
-# Expose port
+# Dynamic port — defaults to 4000, platforms can override with PORT env var
+ENV PORT=4000
+ENV NODE_ENV=production
+
 EXPOSE 4000
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:4000/api/v1/health || exit 1
+# Health check using wget (already installed)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget -qO- http://localhost:${PORT}/api/v1/health || exit 1
 
-# Run migrations then start server
-CMD npx prisma migrate deploy && node dist/server.js
+# Startup: run migrations then start server
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
