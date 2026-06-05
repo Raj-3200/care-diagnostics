@@ -1,11 +1,15 @@
 import type { NextConfig } from 'next';
 
+const isVercel = !!process.env.VERCEL;
 const isProd = process.env.NODE_ENV === 'production';
 const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
 
 const nextConfig: NextConfig = {
-  // ── Production Build ──
-  output: isProd ? 'standalone' : undefined, // minimal Docker image
+  // ── Build Output ──
+  // standalone: used for Docker (Northflank) — minimal self-contained server
+  // On Vercel: disabled (Vercel uses its own serverless model)
+  output: isProd && !isVercel ? 'standalone' : undefined,
+
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
@@ -17,9 +21,10 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 7, // 7 days
   },
 
-  // ── API Proxy (same-origin cookies) ──
-  // In dev: proxies to localhost:4000
-  // In prod: set BACKEND_URL env var to point to your backend
+  // ── API Proxy ──
+  // Rewrites /api/* → backend (same-origin so cookies work)
+  // Dev:  BACKEND_URL defaults to localhost:4000
+  // Prod: set BACKEND_URL in Vercel / Northflank dashboard
   async rewrites() {
     return [
       {
@@ -29,35 +34,7 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // ── Security Headers ──
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          { key: 'X-DNS-Prefetch-Control', value: 'on' },
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          { key: 'X-XSS-Protection', value: '1; mode=block' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
-          },
-          ...(isProd
-            ? [{ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' }]
-            : []),
-        ],
-      },
-      // Cache static assets aggressively
-      {
-        source: '/favicon.png',
-        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
-      },
-    ];
-  },
-
-  // ── Build Optimization ──
+  // ── Build Optimizations ──
   experimental: {
     optimizePackageImports: [
       'lucide-react',
@@ -66,7 +43,6 @@ const nextConfig: NextConfig = {
       'recharts',
       'date-fns',
     ],
-    cpus: 1,
   },
 };
 

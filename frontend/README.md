@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Care Diagnostics — Frontend
 
-## Getting Started
+> **Next.js 16** frontend for the Care Diagnostics LIMS.
+> Deployed on **Vercel** | Backend API on Northflank
 
-First, run the development server:
+## Stack
+- Next.js 16 (App Router) · TypeScript · Tailwind CSS · shadcn/ui
+- Zustand (localStorage session persistence) · Axios · Framer Motion
+- Full dark theme — deep navy design system
+
+---
+
+## Deploy on Vercel (One Click)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Raj-3200/care-diagnostics-frontend)
+
+### Manual Vercel Deploy
+
+1. Go to **[vercel.com](https://vercel.com)** → **Add New Project**
+2. Import `Raj-3200/care-diagnostics-frontend`
+3. Framework preset: **Next.js** (auto-detected)
+4. Add **Environment Variable**:
+   ```
+   BACKEND_URL = https://your-backend.northflank.app
+   ```
+5. Click **Deploy** ✅
+
+> **That's it.** Vercel handles builds, CDN, SSL, and auto-deploys on every `git push`.
+
+---
+
+## Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `BACKEND_URL` | Your Northflank backend URL | ✅ Production |
+
+> In development, `BACKEND_URL` defaults to `http://localhost:4000` — no `.env.local` needed.
+
+---
+
+## Local Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev   # → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Backend must be running on port 4000. The Next.js proxy forwards `/api/*` → `localhost:4000/api/*`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/
+│   ├── dashboard/        # Protected LIMS pages
+│   ├── login/            # Auth page
+│   └── globals.css       # Dark theme design system
+├── components/
+│   ├── ui/               # Dark-themed shadcn/ui components
+│   ├── layout/           # Sidebar, Header (responsive)
+│   └── shared/           # DataTable, AI Assistant, etc.
+└── lib/
+    ├── auth-store.ts     # Zustand + localStorage persistence
+    ├── api.ts            # Axios with auto token refresh
+    └── providers.tsx     # React Query + Theme providers
+```

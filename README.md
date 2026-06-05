@@ -1,188 +1,134 @@
-# Care Diagnostics LIMS
+# Care Diagnostics — Backend API
 
-> **Laboratory Information Management System** — patients, samples, results, reports & invoices in one dark-themed platform.
+> **NestJS REST API** for the Care Diagnostics LIMS.
+> Deployed on **Northflank** | Frontend on Vercel
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 16, TypeScript, Tailwind CSS, shadcn/ui |
-| Backend | NestJS, TypeScript, Prisma ORM |
-| Database | PostgreSQL 16 |
-| Cache / WS | Redis 7 |
-| Auth | JWT (access + refresh cookies) |
-| Container | Docker + Docker Compose |
+## Stack
+- Node.js 20 · TypeScript · NestJS · Prisma ORM
+- PostgreSQL 16 · Redis 7 · JWT (HttpOnly cookies)
+- Docker (multi-stage, non-root, health check)
 
 ---
 
-## Quick Start (Local Dev)
+## Deploy on Northflank
 
-### Prerequisites
-- Node.js 20+, npm 10+
-- PostgreSQL & Redis running (or use Docker)
+### Step 1 — Add PostgreSQL & Redis
 
-### 1. Clone & install
+In your Northflank project (`Care-Daignostics`):
+1. Click **"Deploy PostgreSQL"** → create addon → note the connection URL
+2. Click **"Deploy Redis"** → create addon → note the connection URL
 
-```bash
-git clone <repo-url>
-cd care-digonistcs-main
+### Step 2 — Deploy the Backend Service
 
-# Backend dependencies
-npm install
+1. Click **"Deploy a repository"**
+2. Select `Raj-3200/care-diagnostics-backend`
+3. Northflank detects the `Dockerfile` automatically
+4. Set **Port** to `4000`
 
-# Frontend dependencies
-cd frontend && npm install && cd ..
-```
+### Step 3 — Set Environment Variables
 
-### 2. Environment
+In Northflank service → **"Environment"** tab:
 
-```bash
-# Backend — copy and fill in your values
-cp .env.example .env
-
-# Frontend — already configured for local proxy
-# No .env.local needed for local dev (proxy forwards /api/* to :4000)
-```
-
-**Required `.env` variables:**
-```
-DATABASE_URL=postgresql://care_user:care_pass@localhost:5432/care_diagnostics
-REDIS_URL=redis://localhost:6379
-JWT_ACCESS_SECRET=your-secret-here
-JWT_REFRESH_SECRET=your-refresh-secret-here
+```env
+NODE_ENV=production
 PORT=4000
-NODE_ENV=development
+DATABASE_URL=postgresql://...     ← from PostgreSQL addon
+REDIS_URL=redis://...             ← from Redis addon
+JWT_ACCESS_SECRET=                ← generate 32+ random chars
+JWT_REFRESH_SECRET=               ← generate 32+ random chars
+JWT_ACCESS_EXPIRY=15m
+JWT_REFRESH_EXPIRY=7d
+CORS_ORIGIN=https://your-app.vercel.app
 ```
 
-### 3. Database setup
+### Step 4 — Run Database Seed (First time only)
 
+In Northflank service → **"Shell"** tab:
 ```bash
-# Start Postgres + Redis only
-docker-compose up postgres redis -d
-
-# Run migrations + seed
-npx prisma migrate dev
 npx prisma db seed
 ```
 
-### 4. Run dev servers
+> Migrations run automatically on startup via the Dockerfile CMD.
 
-```bash
-# Terminal 1 — Backend
-npm run dev        # starts on :4000
+### Step 5 — Copy your backend URL
 
-# Terminal 2 — Frontend
-cd frontend
-npm run dev        # starts on :3000
-```
-
-Visit **http://localhost:3000**
-
-**Demo credentials:**
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@carediagnostics.com | Admin@123456 |
-| Doctor | doctor@carediagnostics.com | Doctor@123456 |
-
----
-
-## Production Deployment
-
-### Option A: Docker Compose (Self-hosted)
-
-```bash
-# 1. Set production secrets in .env
-cp .env.example .env
-# Edit .env with real DATABASE_URL, JWT secrets, etc.
-
-# 2. Build & start everything
-docker-compose up -d --build
-
-# Services:
-#   Frontend  → http://localhost:3000
-#   Backend   → http://localhost:4000
-#   Postgres  → localhost:5432
-#   Redis     → localhost:6379
-```
-
-### Option B: Railway (Recommended Cloud)
-
-**Backend service:**
-1. Connect your GitHub repo to Railway
-2. Set root directory to `/` (uses `railway.toml`)
-3. Add env vars: `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
-4. Railway auto-provisions Postgres & Redis plugins
-
-**Frontend service:**
-1. Add a second Railway service, set root directory to `/frontend`
-2. Add env var: `BACKEND_URL=https://your-backend.railway.app`
-3. Railway auto-detects Next.js and builds it
-
-### Option C: Render
-
-Uses the existing `render.yaml`. Connect repo → auto-deploys.
+Copy the public URL from Northflank (e.g. `https://care-backend-xxx.northflank.app`)
+→ Paste as `BACKEND_URL` in your Vercel frontend settings.
 
 ---
 
 ## Environment Variables Reference
 
-### Backend (`.env`)
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DATABASE_URL` | PostgreSQL connection string | ✅ |
-| `REDIS_URL` | Redis connection string | ✅ |
-| `JWT_ACCESS_SECRET` | Access token signing secret (32+ chars) | ✅ |
-| `JWT_REFRESH_SECRET` | Refresh token signing secret (32+ chars) | ✅ |
-| `PORT` | Server port (default: 4000) | ❌ |
-| `NODE_ENV` | `development` or `production` | ❌ |
-| `CORS_ORIGIN` | Allowed frontend origin in production | ❌ |
+```env
+# Database (from Northflank PostgreSQL addon)
+DATABASE_URL=postgresql://user:pass@host:5432/care_diagnostics
 
-### Frontend (`frontend/.env.local` in production)
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `BACKEND_URL` | Backend base URL for Next.js proxy | ✅ prod only |
+# Cache (from Northflank Redis addon)
+REDIS_URL=redis://host:6379
 
----
+# JWT — generate strong random strings (min 32 chars)
+JWT_ACCESS_SECRET=your-access-secret-min-32-characters-here
+JWT_REFRESH_SECRET=your-refresh-secret-min-32-characters-here
+JWT_ACCESS_EXPIRY=15m
+JWT_REFRESH_EXPIRY=7d
 
-## Project Structure
+# Server
+PORT=4000
+NODE_ENV=production
 
-```
-care-diagnostics/
-├── src/                    # NestJS backend
-│   ├── modules/
-│   │   ├── auth/           # JWT auth, sessions
-│   │   ├── patients/       # Patient management
-│   │   ├── visits/         # Visit workflows
-│   │   ├── tests/          # Test catalog
-│   │   ├── samples/        # Sample tracking
-│   │   ├── results/        # Lab results
-│   │   ├── reports/        # PDF reports
-│   │   └── invoices/       # Billing
-│   └── shared/             # Guards, utils, middleware
-├── prisma/
-│   ├── schema.prisma       # Database schema
-│   └── migrations/         # Migration files
-├── frontend/               # Next.js 16 app
-│   ├── src/
-│   │   ├── app/            # App Router pages
-│   │   ├── components/     # UI + layout + shared
-│   │   └── lib/            # Auth store, API client
-│   └── public/             # Static assets
-├── docker-compose.yml      # Full stack local setup
-├── Dockerfile              # Backend Docker image
-└── railway.toml            # Railway deployment config
+# CORS — set to your Vercel frontend URL
+CORS_ORIGIN=https://care-diagnostics.vercel.app
+
+# Optional — AI assistant
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ---
 
-## Features
+## Local Development
 
-- 🔐 **Role-based access** — Admin, Doctor, Lab Tech, Receptionist, Client
-- 👥 **Patient management** — registration, history, demographics
-- 🧪 **Lab workflow** — visits → test orders → samples → results → reports
-- 📄 **PDF reports** — auto-generated, downloadable
-- 💰 **Invoicing** — per-visit billing, payment tracking
-- 🔔 **Real-time notifications** — WebSocket-based alerts
-- 🤖 **AI Assistant** — built-in chat helper
-- 🌑 **Full dark theme** — premium deep navy design
-- 📱 **Responsive** — works on mobile, tablet, desktop
+```bash
+npm install
+
+# Copy env file and fill in values
+cp .env.example .env
+
+# Start Postgres + Redis via Docker
+docker compose up postgres redis -d
+
+# Run migrations + seed
+npx prisma migrate dev
+npx prisma db seed
+
+# Start dev server
+npm run dev   # → http://localhost:4000
+```
+
+**Health check:** `GET http://localhost:4000/api/v1/health`
+
+---
+
+## API Modules
+
+| Module | Endpoints |
+|--------|-----------|
+| Auth | `POST /api/v1/auth/login`, `/logout`, `/refresh`, `GET /me` |
+| Patients | `GET/POST /api/v1/patients` |
+| Visits | `GET/POST /api/v1/visits` |
+| Tests | `GET/POST /api/v1/tests` |
+| Samples | `GET/POST /api/v1/samples` |
+| Results | `GET/POST /api/v1/results` |
+| Reports | `GET/POST /api/v1/reports` |
+| Invoices | `GET/POST /api/v1/invoices` |
+| Users | `GET/POST /api/v1/users` |
+| Health | `GET /api/v1/health` |
+
+---
+
+## Demo Credentials (after seed)
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@carediagnostics.com | Admin@123456 |
+| Doctor | doctor@carediagnostics.com | Doctor@123456 |
+| Lab Tech | labtech@carediagnostics.com | Labtech@123456 |
