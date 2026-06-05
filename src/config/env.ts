@@ -18,7 +18,7 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
   JWT_ACCESS_EXPIRY: z.string().default('15m'),
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
-  CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  CORS_ORIGIN: z.string().default('*'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
   DEFAULT_TENANT_ID: z.string().uuid().optional().default('00000000-0000-0000-0000-000000000001'),
 });
@@ -31,11 +31,10 @@ try {
   env = envSchema.parse(process.env);
 } catch (error) {
   if (error instanceof z.ZodError) {
-    console.error('❌ Environment validation failed:');
-    error.errors.forEach((err) => {
-      console.error(`  - ${err.path.join('.')}: ${err.message}`);
-    });
-    process.exit(1);
+    const messages = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+    console.error('❌ Environment validation failed:', messages);
+    // Throw instead of process.exit so serverless functions return 500 gracefully
+    throw new Error(`Missing required environment variables: ${messages}`);
   }
   throw error;
 }
