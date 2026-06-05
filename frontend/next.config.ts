@@ -1,3 +1,4 @@
+// Build: 2 — forces Vercel to rebuild with correct BACKEND_URL
 import type { NextConfig } from 'next';
 
 const isVercel = !!process.env.VERCEL;
