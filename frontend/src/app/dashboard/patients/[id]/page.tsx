@@ -61,7 +61,7 @@ export default function PatientDetailPage() {
 
       {/* Patient Avatar Header */}
       <FadeIn>
-        <div className="mb-6 flex items-center gap-4 rounded-xl border border-border/40 bg-white p-5 shadow-sm">
+        <div className="mb-6 flex items-center gap-4 rounded-xl border border-border/40 bg-card p-5 shadow-sm">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/[0.08] text-lg font-bold text-primary">
             {patient.firstName[0]}{patient.lastName[0]}
           </div>

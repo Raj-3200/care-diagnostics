@@ -8,7 +8,13 @@ import type { ApiResponse, Report } from '@/types';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { REPORT_STATUS_LABELS, REPORT_STATUS_COLORS } from '@/lib/constants';
 import { format } from 'date-fns';
@@ -68,10 +74,9 @@ export default function ReportsPage() {
 
   const handleDownloadPDF = async (reportId: string, reportNumber: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/reports/${reportId}/download`,
-        { headers: { Authorization: `Bearer ${token}` } },
+        { credentials: 'include' },
       );
       if (!response.ok) throw new Error('Failed to download report');
       const blob = await response.blob();
@@ -99,7 +104,9 @@ export default function ReportsPage() {
     {
       header: 'Visit',
       cell: (row) => (
-        <span className="font-mono text-[13px] text-muted-foreground">{row.visit?.visitNumber || '—'}</span>
+        <span className="font-mono text-[13px] text-muted-foreground">
+          {row.visit?.visitNumber || '—'}
+        </span>
       ),
     },
     {
@@ -109,7 +116,8 @@ export default function ReportsPage() {
         return (
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/[0.06] text-[12px] font-semibold text-primary">
-              {row.visit.patient.firstName[0]}{row.visit.patient.lastName[0]}
+              {row.visit.patient.firstName[0]}
+              {row.visit.patient.lastName[0]}
             </div>
             <span className="font-medium text-foreground">
               {row.visit.patient.firstName} {row.visit.patient.lastName}
@@ -121,13 +129,19 @@ export default function ReportsPage() {
     {
       header: 'Status',
       cell: (row) => (
-        <StatusBadge status={row.status} colorMap={REPORT_STATUS_COLORS} labelMap={REPORT_STATUS_LABELS} />
+        <StatusBadge
+          status={row.status}
+          colorMap={REPORT_STATUS_COLORS}
+          labelMap={REPORT_STATUS_LABELS}
+        />
       ),
     },
     {
       header: 'Created',
       cell: (row) => (
-        <span className="text-[13px] text-muted-foreground">{format(new Date(row.createdAt), 'dd MMM yyyy')}</span>
+        <span className="text-[13px] text-muted-foreground">
+          {format(new Date(row.createdAt), 'dd MMM yyyy')}
+        </span>
       ),
     },
     {
@@ -151,7 +165,11 @@ export default function ReportsPage() {
               disabled={generateReport.isPending}
               className="h-8 gap-1.5 rounded-lg border-border/50 text-[12px]"
             >
-              {generateReport.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileUp className="h-3 w-3" />}
+              {generateReport.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <FileUp className="h-3 w-3" />
+              )}
               Generate
             </Button>
           )}
@@ -163,7 +181,11 @@ export default function ReportsPage() {
               disabled={approveReport.isPending}
               className="h-8 gap-1.5 rounded-lg border-emerald-200 bg-emerald-50 text-[12px] text-emerald-700 hover:bg-emerald-100"
             >
-              {approveReport.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+              {approveReport.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <CheckCircle className="h-3 w-3" />
+              )}
               Approve
             </Button>
           )}
@@ -175,7 +197,11 @@ export default function ReportsPage() {
               disabled={dispatchReport.isPending}
               className="h-8 gap-1.5 rounded-lg border-violet-200 bg-violet-50 text-[12px] text-violet-700 hover:bg-violet-100"
             >
-              {dispatchReport.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+              {dispatchReport.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Send className="h-3 w-3" />
+              )}
               Dispatch
             </Button>
           )}
@@ -190,14 +216,22 @@ export default function ReportsPage() {
 
       <FadeIn delay={0.05}>
         <div className="mb-5 flex items-center gap-3">
-          <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
-            <SelectTrigger className="h-10 w-52 rounded-lg border-border/50 bg-white text-[13.5px]">
+          <Select
+            value={status}
+            onValueChange={(v) => {
+              setStatus(v);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="h-10 w-52 rounded-lg border-border/50 bg-card text-[13.5px]">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Statuses</SelectItem>
               {Object.entries(REPORT_STATUS_LABELS).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
+                <SelectItem key={k} value={k}>
+                  {v}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>

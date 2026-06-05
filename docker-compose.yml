@@ -1,9 +1,10 @@
 version: '3.8'
 
 services:
+  # ── PostgreSQL ──────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: care-diagnostics-db
+    container_name: care-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: care_user
@@ -19,9 +20,10 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Redis ───────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: care-diagnostics-redis
+    container_name: care-redis
     restart: unless-stopped
     ports:
       - '6379:6379'
@@ -33,6 +35,58 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ── Backend API (NestJS) ────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: care-backend
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://care_user:care_pass@postgres:5432/care_diagnostics
+      REDIS_URL: redis://redis:6379
+      PORT: 4000
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/api/v1/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
+  # ── Frontend (Next.js) ──────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:4000
+    container_name: care-frontend
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      BACKEND_URL: http://backend:4000
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000 || exit 1']
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
 
 volumes:
   pgdata:

@@ -108,7 +108,7 @@ export default function PatientsPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
             <Input
               placeholder="Search by name, MRN, phone..."
-              className="h-10 rounded-lg border-border/50 bg-white pl-9 pr-9 text-[13.5px] placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-primary/20"
+              className="h-10 rounded-lg border-border/50 bg-card pl-9 pr-9 text-[13.5px] placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-primary/20"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

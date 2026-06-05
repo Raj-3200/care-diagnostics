@@ -41,14 +41,14 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   if (isLoading) {
     return (
-      <div className="overflow-hidden rounded-xl border border-border/50 bg-white">
+      <div className="overflow-hidden rounded-xl border border-border/50 bg-card">
         <Table>
           <TableHeader>
             <TableRow className="border-border/50 hover:bg-transparent">
               {columns.map((col, i) => (
                 <TableHead
                   key={i}
-                  className="h-11 bg-[#F8FAFC] text-[12px] font-semibold uppercase tracking-wider text-muted-foreground/70"
+                  className="h-11 bg-muted/30 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground/70"
                 >
                   {col.header}
                 </TableHead>
@@ -73,14 +73,14 @@ export function DataTable<T>({
 
   return (
     <FadeIn delay={0.1}>
-      <div className="overflow-hidden rounded-xl border border-border/50 bg-white">
+      <div className="overflow-hidden rounded-xl border border-border/50 bg-card">
         <Table>
           <TableHeader>
             <TableRow className="border-border/50 hover:bg-transparent">
               {columns.map((col, i) => (
                 <TableHead
                   key={i}
-                  className={`h-11 bg-[#F8FAFC] text-[12px] font-semibold uppercase tracking-wider text-muted-foreground/70 ${col.className || ''}`}
+                  className={`h-11 bg-muted/30 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground/70 ${col.className || ''}`}
                 >
                   {col.header}
                 </TableHead>
@@ -110,7 +110,7 @@ export function DataTable<T>({
                   key={i}
                   className={`border-border/30 transition-colors duration-100 ${
                     onRowClick
-                      ? 'cursor-pointer hover:bg-[#F8FAFC]'
+                      ? 'cursor-pointer hover:bg-muted/30'
                       : ''
                   }`}
                   onClick={() => onRowClick?.(row)}
@@ -151,7 +151,7 @@ export function DataTable<T>({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="flex h-8 items-center gap-1 rounded-lg border border-border/50 bg-white px-3">
+            <div className="flex h-8 items-center gap-1 rounded-lg border border-border/50 bg-card px-3">
               <span className="text-[13px] font-medium">{pagination.page}</span>
               <span className="text-[13px] text-muted-foreground">of</span>
               <span className="text-[13px] font-medium">{pagination.totalPages}</span>

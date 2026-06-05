@@ -1,4 +1,15 @@
-import type { Role, VisitStatus, SampleStatus, ResultStatus, ReportStatus, InvoiceStatus, TestCategory, SampleType, Gender, PaymentMethod } from '@/types';
+import type {
+  Role,
+  VisitStatus,
+  SampleStatus,
+  ResultStatus,
+  ReportStatus,
+  InvoiceStatus,
+  TestCategory,
+  SampleType,
+  Gender,
+  PaymentMethod,
+} from '@/types';
 
 export const ROLE_LABELS: Record<Role, string> = {
   ADMIN: 'Admin',
@@ -6,6 +17,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   LAB_TECHNICIAN: 'Lab Technician',
   PATHOLOGIST: 'Pathologist',
   PATIENT: 'Patient',
+  CLIENT: 'Client',
 };
 
 export const GENDER_LABELS: Record<Gender, string> = {
@@ -92,7 +104,7 @@ export const VISIT_STATUS_COLORS: Record<VisitStatus, string> = {
 };
 
 export const SAMPLE_STATUS_COLORS: Record<SampleStatus, string> = {
-  PENDING_COLLECTION: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  PENDING_COLLECTION: 'bg-muted/30 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
   COLLECTED: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
   IN_LAB: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
   PROCESSED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
@@ -100,21 +112,21 @@ export const SAMPLE_STATUS_COLORS: Record<SampleStatus, string> = {
 };
 
 export const RESULT_STATUS_COLORS: Record<ResultStatus, string> = {
-  PENDING: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  PENDING: 'bg-muted/30 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
   ENTERED: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
   VERIFIED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
   REJECTED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
 };
 
 export const REPORT_STATUS_COLORS: Record<ReportStatus, string> = {
-  PENDING: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  PENDING: 'bg-muted/30 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
   GENERATED: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
   APPROVED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
   DISPATCHED: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
 };
 
 export const INVOICE_STATUS_COLORS: Record<InvoiceStatus, string> = {
-  PENDING: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  PENDING: 'bg-muted/30 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
   PARTIAL: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
   PAID: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
   CANCELLED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
@@ -130,14 +142,68 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: 'LayoutDashboard', roles: ['ADMIN', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST'] },
-  { label: 'Patients', href: '/dashboard/patients', icon: 'Users', roles: ['ADMIN', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST'] },
-  { label: 'Visits', href: '/dashboard/visits', icon: 'ClipboardList', roles: ['ADMIN', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST'] },
-  { label: 'Test Catalog', href: '/dashboard/tests', icon: 'FlaskConical', roles: ['ADMIN', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST'] },
-  { label: 'Test Orders', href: '/dashboard/test-orders', icon: 'FileText', roles: ['ADMIN', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST'] },
-  { label: 'Samples', href: '/dashboard/samples', icon: 'TestTube', roles: ['ADMIN', 'LAB_TECHNICIAN', 'PATHOLOGIST'] },
-  { label: 'Results', href: '/dashboard/results', icon: 'FileCheck', roles: ['ADMIN', 'LAB_TECHNICIAN', 'PATHOLOGIST'] },
-  { label: 'Reports', href: '/dashboard/reports', icon: 'FileOutput', roles: ['ADMIN', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'RECEPTIONIST'] },
-  { label: 'Invoices', href: '/dashboard/invoices', icon: 'Receipt', roles: ['ADMIN', 'RECEPTIONIST'] },
+  {
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: 'LayoutDashboard',
+    roles: ['ADMIN', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST'],
+  },
+  {
+    label: 'Patients',
+    href: '/dashboard/patients',
+    icon: 'Users',
+    roles: ['ADMIN', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST'],
+  },
+  {
+    label: 'Visits',
+    href: '/dashboard/visits',
+    icon: 'ClipboardList',
+    roles: ['ADMIN', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST'],
+  },
+  {
+    label: 'Test Catalog',
+    href: '/dashboard/tests',
+    icon: 'FlaskConical',
+    roles: ['ADMIN', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST'],
+  },
+  {
+    label: 'Test Orders',
+    href: '/dashboard/test-orders',
+    icon: 'FileText',
+    roles: ['ADMIN', 'RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST'],
+  },
+  {
+    label: 'Samples',
+    href: '/dashboard/samples',
+    icon: 'TestTube',
+    roles: ['ADMIN', 'LAB_TECHNICIAN', 'PATHOLOGIST'],
+  },
+  {
+    label: 'Results',
+    href: '/dashboard/results',
+    icon: 'FileCheck',
+    roles: ['ADMIN', 'LAB_TECHNICIAN', 'PATHOLOGIST'],
+  },
+  {
+    label: 'Reports',
+    href: '/dashboard/reports',
+    icon: 'FileOutput',
+    roles: ['ADMIN', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'RECEPTIONIST'],
+  },
+  {
+    label: 'Invoices',
+    href: '/dashboard/invoices',
+    icon: 'Receipt',
+    roles: ['ADMIN', 'RECEPTIONIST'],
+  },
   { label: 'Users', href: '/dashboard/users', icon: 'Shield', roles: ['ADMIN'] },
+  { label: 'Clients', href: '/dashboard/clients', icon: 'Building', roles: ['ADMIN'] },
+  { label: 'My Reports', href: '/dashboard/my-reports', icon: 'FileOutput', roles: ['CLIENT'] },
+  { label: 'My Patients', href: '/dashboard/my-patients', icon: 'Users', roles: ['CLIENT'] },
+  {
+    label: 'Test Requests',
+    href: '/dashboard/test-requests',
+    icon: 'ClipboardList',
+    roles: ['CLIENT'],
+  },
 ];

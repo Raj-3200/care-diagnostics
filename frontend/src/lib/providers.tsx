@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
+import { ThemeProvider } from 'next-themes';
 import { useState } from 'react';
 import { useWebSocket } from './websocket';
 
@@ -27,15 +28,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <WebSocketInit />
-      {children}
-      <Toaster
-        richColors
-        position="top-right"
-        toastOptions={{
-          className: 'shadow-lg border-border/50',
-        }}
-      />
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        forcedTheme="dark"
+        enableSystem={false}
+        disableTransitionOnChange
+      >
+        <WebSocketInit />
+        {children}
+        <Toaster
+          richColors
+          position="top-right"
+          toastOptions={{
+            className: 'shadow-lg border-border/50',
+          }}
+        />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

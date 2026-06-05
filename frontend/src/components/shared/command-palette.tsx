@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import api from '@/lib/api';
 import type { ApiResponse, Patient, Visit } from '@/types';
@@ -254,6 +254,7 @@ export function CommandPalette() {
         className="top-[20%] translate-y-0 overflow-hidden rounded-xl border-border/50 p-0 shadow-2xl sm:max-w-[520px]"
         showCloseButton={false}
       >
+        <DialogTitle className="sr-only">Command Palette</DialogTitle>
         <div className="flex items-center border-b border-border/40 px-4">
           <Search className="h-4 w-4 text-muted-foreground/60" />
           <Input
@@ -334,7 +335,7 @@ export function CommandPalette() {
                         : 'text-foreground hover:bg-muted/50',
                     )}
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
                       {result.icon}
                     </span>
                     <div className="flex-1 min-w-0">
@@ -371,7 +372,7 @@ export function CommandPalette() {
                         : 'text-foreground hover:bg-muted/50',
                     )}
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-success/10 text-success">
                       {result.icon}
                     </span>
                     <div className="flex-1 min-w-0">
@@ -393,19 +394,19 @@ export function CommandPalette() {
         <div className="flex items-center justify-between border-t border-border/40 bg-muted/20 px-4 py-2">
           <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1">
-              <kbd className="rounded border border-border/40 bg-white px-1 py-0.5 font-mono text-[10px]">
+              <kbd className="rounded border border-border/40 bg-card px-1 py-0.5 font-mono text-[10px]">
                 ↑↓
               </kbd>{' '}
               navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="rounded border border-border/40 bg-white px-1 py-0.5 font-mono text-[10px]">
+              <kbd className="rounded border border-border/40 bg-card px-1 py-0.5 font-mono text-[10px]">
                 ↵
               </kbd>{' '}
               select
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="rounded border border-border/40 bg-white px-1 py-0.5 font-mono text-[10px]">
+              <kbd className="rounded border border-border/40 bg-card px-1 py-0.5 font-mono text-[10px]">
                 esc
               </kbd>{' '}
               close

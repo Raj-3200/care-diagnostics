@@ -58,7 +58,7 @@ export default function TestDetailPage() {
 
       {/* Header card */}
       <FadeIn>
-        <div className="mb-6 flex items-center justify-between rounded-xl border border-border/40 bg-white p-5 shadow-sm">
+        <div className="mb-6 flex items-center justify-between rounded-xl border border-border/40 bg-card p-5 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/[0.08]">
               <FlaskConical className="h-5 w-5 text-primary" />
@@ -165,7 +165,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function StatPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-border/40 bg-white p-3 shadow-sm">
+    <div className="flex items-center gap-2.5 rounded-lg border border-border/40 bg-card p-3 shadow-sm">
       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/[0.06] text-primary">
         {icon}
       </div>

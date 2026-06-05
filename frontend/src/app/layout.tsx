@@ -1,24 +1,32 @@
-import type { Metadata } from "next";
-import { Inter, Archivo } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const archivo = Archivo({
-  variable: "--font-archivo",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
-
 export const metadata: Metadata = {
-  title: "Care Diagnostics LIMS",
-  description: "Laboratory Information Management System for Care Diagnostics",
+  title: {
+    default: "Care Diagnostics LIMS",
+    template: "%s | Care Diagnostics",
+  },
+  description:
+    "Professional Laboratory Information Management System — manage patients, samples, results, reports and invoices in one platform.",
+  keywords: ["LIMS", "laboratory", "diagnostics", "healthcare", "pathology", "medical"],
+  authors: [{ name: "Care Diagnostics" }],
+  creator: "Care Diagnostics",
+  robots: { index: false, follow: false }, // private app — no indexing
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+    ],
+    apple: "/favicon.png",
+  },
+  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#080D18",
 };
 
 export default function RootLayout({
@@ -27,8 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${archivo.variable} font-sans antialiased`}>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className="font-sans antialiased overflow-x-hidden">
         <Providers>{children}</Providers>
       </body>
     </html>

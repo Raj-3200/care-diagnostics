@@ -19,6 +19,7 @@ import invoiceRoutes from './modules/invoice/invoice.routes.js';
 import healthRoutes from './modules/health/health.routes.js';
 import aiRoutes from './modules/ai/ai.routes.js';
 import notificationRoutes from './modules/notification/notification.routes.js';
+import clientRoutes from './modules/client/client.routes.js';
 import { NotFoundError } from './shared/errors/AppError.js';
 import { setupSwagger } from './config/swagger.js';
 
@@ -26,6 +27,7 @@ const app = express();
 
 const allowedOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim());
 const allowAllOrigins = allowedOrigins.includes('*');
+const localDevOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 // Security middleware
 app.use(helmet());
@@ -33,7 +35,19 @@ app.use(helmet());
 // CORS
 app.use(
   cors({
-    origin: allowAllOrigins ? true : allowedOrigins,
+    origin(origin, callback) {
+      if (
+        allowAllOrigins ||
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        (env.NODE_ENV === 'development' && localDevOrigin.test(origin))
+      ) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`CORS origin ${origin} is not allowed`));
+    },
     credentials: true, // Always true for cookie-based auth
   }),
 );
@@ -76,6 +90,10 @@ app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/clients', clientRoutes);
+
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
 
 // 404 handler
 app.use((req: Request, _res: Response) => {

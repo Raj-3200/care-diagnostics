@@ -114,7 +114,7 @@ function MessageContent({ content, messageType }: { content: string; messageType
         // Warning icon line
         if (trimmedLine.startsWith('⚠️')) {
           return (
-            <div key={i} className="flex gap-2 items-start text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5 mt-1">
+            <div key={i} className="flex gap-2 items-start text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5 mt-1">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <span className="text-[12px]">{renderInlineMarkdown(trimmedLine.slice(2).trim())}</span>
             </div>
@@ -258,11 +258,11 @@ function MessageTypeIndicator({ type }: { type?: MessageType }) {
 
   const configs: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
     step: { icon: <ClipboardList className="h-3 w-3" />, label: 'Data Collection', className: 'bg-primary/10 text-primary' },
-    validation_error: { icon: <AlertTriangle className="h-3 w-3" />, label: 'Validation', className: 'bg-red-50 text-red-700' },
-    confirmation: { icon: <Shield className="h-3 w-3" />, label: 'Confirmation Required', className: 'bg-amber-50 text-amber-700' },
-    result: { icon: <CheckCircle2 className="h-3 w-3" />, label: 'Result', className: 'bg-emerald-50 text-emerald-700' },
-    error: { icon: <XCircle className="h-3 w-3" />, label: 'Error', className: 'bg-red-50 text-red-700' },
-    navigation: { icon: <Compass className="h-3 w-3" />, label: 'Navigation', className: 'bg-blue-50 text-blue-700' },
+    validation_error: { icon: <AlertTriangle className="h-3 w-3" />, label: 'Validation', className: 'bg-destructive/10 text-destructive' },
+    confirmation: { icon: <Shield className="h-3 w-3" />, label: 'Confirmation Required', className: 'bg-warning/10 text-warning' },
+    result: { icon: <CheckCircle2 className="h-3 w-3" />, label: 'Result', className: 'bg-success/10 text-success' },
+    error: { icon: <XCircle className="h-3 w-3" />, label: 'Error', className: 'bg-destructive/10 text-destructive' },
+    navigation: { icon: <Compass className="h-3 w-3" />, label: 'Navigation', className: 'bg-primary/10 text-primary' },
   };
 
   const config = configs[type];
@@ -475,7 +475,7 @@ export function AiAssistant() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="fixed bottom-6 right-6 z-50 flex h-[640px] w-[440px] flex-col overflow-hidden rounded-2xl border border-border/50 bg-white shadow-2xl"
+            className="fixed bottom-6 right-6 z-50 flex h-[640px] w-[440px] flex-col overflow-hidden rounded-2xl border border-border/50 bg-card shadow-2xl"
           >
             {/* ─── Header ─── */}
             <div className="flex items-center justify-between border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent px-4 py-3">
@@ -565,7 +565,7 @@ export function AiAssistant() {
                             key={s}
                             onClick={() => sendMessage(s)}
                             disabled={isLoading}
-                            className="inline-flex items-center rounded-lg border border-primary/20 bg-white px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/5 hover:border-primary/40 transition-all disabled:opacity-50"
+                            className="inline-flex items-center rounded-lg border border-primary/20 bg-card px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/5 hover:border-primary/40 transition-all disabled:opacity-50"
                           >
                             {s}
                           </button>
@@ -612,7 +612,7 @@ export function AiAssistant() {
             </AnimatePresence>
 
             {/* ─── Input Area ─── */}
-            <div className="border-t border-border/50 bg-white p-3">
+            <div className="border-t border-border/50 bg-card p-3">
               {/* Workflow action buttons */}
               {isInWorkflow && (
                 <div className="flex items-center gap-2 mb-2">

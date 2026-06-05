@@ -1,18 +1,25 @@
-# Render.com Blueprint — one-click backend deploy
+# Render.com Blueprint — full-stack deploy (backend + frontend)
 # https://render.com/docs/blueprint-spec
+
 services:
+  # ── Backend API (NestJS) ────────────────────────────────
   - type: web
     name: care-diagnostics-api
     runtime: node
     plan: free
+    rootDir: .
     buildCommand: npm ci && npm run build
     startCommand: npx prisma migrate deploy && npm start
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 4000
       - key: DATABASE_URL
-        sync: false # set manually in Render dashboard
+        sync: false          # set in Render dashboard → PostgreSQL plugin
+      - key: REDIS_URL
+        sync: false          # set in Render dashboard → Redis plugin
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -22,6 +29,21 @@ services:
       - key: JWT_REFRESH_EXPIRY
         value: 7d
       - key: CORS_ORIGIN
-        sync: false # set to your Vercel frontend URL
+        sync: false          # set to your frontend URL e.g. https://care-lims.onrender.com
       - key: ANTHROPIC_API_KEY
-        sync: false # optional
+        sync: false          # optional AI assistant
+
+  # ── Frontend (Next.js) ─────────────────────────────────
+  - type: web
+    name: care-diagnostics-frontend
+    runtime: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BACKEND_URL
+        sync: false          # set to your backend Render URL e.g. https://care-diagnostics-api.onrender.com

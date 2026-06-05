@@ -1,13 +1,18 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+// Use relative URL in browser (goes through Next.js proxy → backend)
+// In server-side context, fall back to the explicit URL
+const API_URL =
+  typeof window !== 'undefined'
+    ? '/api/v1'
+    : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
-  withCredentials: true, // Send httpOnly cookies automatically
+  withCredentials: true, // Send cookies automatically (same-origin via proxy)
 });
 
 // Response interceptor — handle 401 refresh via cookie
@@ -23,7 +28,7 @@ api.interceptors.response.use(
         // Refresh token is sent automatically via httpOnly cookie
         const { data } = await axios.post<
           ApiResponse<{ accessToken: string; refreshToken: string }>
-        >(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
+        >('/api/v1/auth/refresh', {}, { withCredentials: true });
 
         if (data.success && data.data) {
           return api(originalRequest);

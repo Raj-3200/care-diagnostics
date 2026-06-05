@@ -1,15 +1,42 @@
 // ==================== ENUMS ====================
 
-export type Role = 'ADMIN' | 'RECEPTIONIST' | 'LAB_TECHNICIAN' | 'PATHOLOGIST' | 'PATIENT';
+export type Role =
+  | 'ADMIN'
+  | 'RECEPTIONIST'
+  | 'LAB_TECHNICIAN'
+  | 'PATHOLOGIST'
+  | 'PATIENT'
+  | 'CLIENT';
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
-export type VisitStatus = 'REGISTERED' | 'SAMPLES_COLLECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type VisitStatus =
+  | 'REGISTERED'
+  | 'SAMPLES_COLLECTED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED';
 export type SampleStatus = 'PENDING_COLLECTION' | 'COLLECTED' | 'IN_LAB' | 'PROCESSED' | 'REJECTED';
 export type ResultStatus = 'PENDING' | 'ENTERED' | 'VERIFIED' | 'REJECTED';
 export type ReportStatus = 'PENDING' | 'GENERATED' | 'APPROVED' | 'DISPATCHED';
 export type InvoiceStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED' | 'REFUNDED';
 export type PaymentMethod = 'CASH' | 'CARD' | 'UPI' | 'ONLINE' | 'INSURANCE';
-export type SampleType = 'BLOOD' | 'URINE' | 'STOOL' | 'SWAB' | 'SPUTUM' | 'TISSUE' | 'CSF' | 'OTHER';
-export type TestCategory = 'HEMATOLOGY' | 'BIOCHEMISTRY' | 'MICROBIOLOGY' | 'PATHOLOGY' | 'IMMUNOLOGY' | 'RADIOLOGY' | 'MOLECULAR' | 'OTHER';
+export type SampleType =
+  | 'BLOOD'
+  | 'URINE'
+  | 'STOOL'
+  | 'SWAB'
+  | 'SPUTUM'
+  | 'TISSUE'
+  | 'CSF'
+  | 'OTHER';
+export type TestCategory =
+  | 'HEMATOLOGY'
+  | 'BIOCHEMISTRY'
+  | 'MICROBIOLOGY'
+  | 'PATHOLOGY'
+  | 'IMMUNOLOGY'
+  | 'RADIOLOGY'
+  | 'MOLECULAR'
+  | 'OTHER';
 
 // ==================== API RESPONSE ====================
 
@@ -62,6 +89,8 @@ export interface Patient {
   bloodGroup?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
+  referredByClientId?: string;
+  referredByClient?: Pick<User, 'id' | 'firstName' | 'lastName' | 'email'>;
   registeredBy?: Pick<User, 'id' | 'firstName' | 'lastName'>;
   createdAt: string;
   updatedAt: string;
@@ -198,4 +227,22 @@ export interface AuthTokens {
 export interface LoginResponse {
   user: User;
   tokens: AuthTokens;
+}
+
+// ==================== CLIENT ====================
+
+export interface ClientReport {
+  id: string;
+  clientId: string;
+  patientId?: string;
+  title: string;
+  description?: string;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+  uploadedBy?: Pick<User, 'id' | 'firstName' | 'lastName'>;
+  client?: Pick<User, 'id' | 'firstName' | 'lastName' | 'email'>;
+  patient?: { id: string; firstName: string; lastName: string; mrn: string };
+  createdAt: string;
+  updatedAt: string;
 }

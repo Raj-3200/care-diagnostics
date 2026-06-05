@@ -42,7 +42,7 @@ export function WorkflowStepper({ steps, currentStatus, className }: WorkflowSte
                   isCurrent && isCancelled && 'border-red-500 bg-red-500 text-white',
                   !isCompleted &&
                     !isCurrent &&
-                    'border-border/60 bg-white text-muted-foreground/50',
+                    'border-border/60 bg-card text-muted-foreground/50',
                 )}
               >
                 {isCompleted ? <Check className="h-3.5 w-3.5" /> : <span>{i + 1}</span>}

@@ -20,6 +20,7 @@ import {
   Receipt,
   Shield,
   Activity,
+  Building,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -34,6 +35,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   FileOutput,
   Receipt,
   Shield,
+  Building,
 };
 
 // Group nav items into sections for visual clarity
@@ -42,7 +44,8 @@ const NAV_SECTIONS = [
   { label: 'Patient Care', items: ['Patients', 'Visits'] },
   { label: 'Laboratory', items: ['Test Catalog', 'Test Orders', 'Samples', 'Results'] },
   { label: 'Reporting', items: ['Reports', 'Invoices'] },
-  { label: 'Administration', items: ['Users'] },
+  { label: 'Administration', items: ['Users', 'Clients'] },
+  { label: 'Client Portal', items: ['My Reports', 'My Patients', 'Test Requests'] },
 ];
 
 // Map nav labels to badge-count endpoints
@@ -79,7 +82,7 @@ export function Sidebar() {
   const filteredItems = NAV_ITEMS.filter((item) => user && item.roles.includes(user.role));
 
   return (
-    <aside className="hidden w-[260px] flex-shrink-0 border-r border-border/50 bg-white lg:flex lg:flex-col">
+    <aside className="hidden w-[260px] flex-shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
       {/* Logo */}
       <div className="flex h-16 items-center gap-2.5 border-b border-border/50 px-6">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
@@ -144,7 +147,7 @@ export function Sidebar() {
                         <span
                           className={cn(
                             'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none',
-                            isActive ? 'bg-primary text-white' : 'bg-amber-100 text-amber-700',
+                            isActive ? 'bg-primary text-primary-foreground' : 'bg-warning/15 text-warning',
                           )}
                         >
                           {badgeCount > 99 ? '99+' : badgeCount}

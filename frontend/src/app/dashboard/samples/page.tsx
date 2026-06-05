@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -126,7 +126,7 @@ export default function SamplesPage() {
       <FadeIn delay={0.05}>
         <div className="mb-5 flex items-center gap-3">
           <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
-            <SelectTrigger className="h-10 w-52 rounded-lg border-border/50 bg-white text-[13.5px]">
+            <SelectTrigger className="h-10 w-52 rounded-lg border-border/50 bg-card text-[13.5px]">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>

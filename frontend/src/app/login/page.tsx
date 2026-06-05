@@ -7,6 +7,7 @@ import { getErrorMessage } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { toast } from 'sonner';
 import {
   Activity,
@@ -17,6 +18,7 @@ import {
   UserCog,
   FlaskConical,
   Stethoscope,
+  Building,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -26,28 +28,40 @@ const DEMO_CREDENTIALS = [
     email: 'admin@carediagnostics.com',
     password: 'Admin@123456',
     icon: Shield,
-    color: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100',
+    color:
+      'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60 dark:hover:bg-blue-900/50',
   },
   {
     role: 'Receptionist',
     email: 'receptionist@carediagnostics.com',
     password: 'Staff@123456',
     icon: UserCog,
-    color: 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100',
+    color:
+      'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60 dark:hover:bg-emerald-900/50',
   },
   {
     role: 'Lab Tech',
     email: 'labtech@carediagnostics.com',
     password: 'Staff@123456',
     icon: FlaskConical,
-    color: 'bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100',
+    color:
+      'bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-900/60 dark:hover:bg-violet-900/50',
   },
   {
     role: 'Pathologist',
     email: 'pathologist@carediagnostics.com',
     password: 'Staff@123456',
     icon: Stethoscope,
-    color: 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100',
+    color:
+      'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60 dark:hover:bg-amber-900/50',
+  },
+  {
+    role: 'Client (Apollo)',
+    email: 'apollo@carediagnostics.com',
+    password: 'Client@123456',
+    icon: Building,
+    color:
+      'bg-cyan-50 text-cyan-600 border-cyan-200 hover:bg-cyan-100 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-900/60 dark:hover:bg-cyan-900/50',
   },
 ];
 
@@ -79,9 +93,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]">
+    <div className="flex min-h-screen bg-background">
+      <div className="fixed right-5 top-5 z-20">
+        <ThemeToggle />
+      </div>
       {/* Left Panel — Branding */}
-      <div className="hidden w-[480px] flex-col justify-between bg-white p-12 lg:flex">
+      <div className="hidden w-[480px] flex-col justify-between border-r border-border/60 bg-card p-12 lg:flex">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
@@ -147,7 +164,7 @@ export default function LoginPage() {
               ].map((badge) => (
                 <div
                   key={badge.label}
-                  className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-center"
+                  className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-center"
                 >
                   <p className="text-[12px] font-semibold text-foreground">{badge.label}</p>
                   <p className="text-[10px] text-muted-foreground">{badge.desc}</p>
@@ -163,7 +180,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right Panel — Login Form */}
-      <div className="flex flex-1 items-center justify-center px-6">
+      <div className="flex flex-1 items-center justify-center bg-muted/30 px-6">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -198,7 +215,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoFocus
-                className="h-10 rounded-lg border-border/60 bg-white text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
+                className="h-10 rounded-lg border-border/60 bg-card text-[14px] placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
               />
             </div>
 
@@ -214,7 +231,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-10 rounded-lg border-border/60 bg-white pr-10 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
+                  className="h-10 rounded-lg border-border/60 bg-card pr-10 text-[14px] placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
                 />
                 <button
                   type="button"

@@ -13,7 +13,7 @@ export function StatusBadge({ status, colorMap, labelMap }: StatusBadgeProps) {
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium leading-5',
-        colorMap[status] || 'bg-gray-50 text-gray-600',
+        colorMap[status] || 'bg-muted/30 text-muted-foreground',
       )}
     >
       <span className={cn(
