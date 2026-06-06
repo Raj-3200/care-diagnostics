@@ -1,10 +1,23 @@
 /**
- * Runtime API Proxy — forwards all /api/* requests to the backend
- * Reads BACKEND_URL at request time (not build time) so Vercel env vars always work
+ * Runtime API proxy: forwards /api/* requests to the backend.
+ * BACKEND_URL is read at request time, so Vercel env changes do not need a rebuild.
  */
 import { type NextRequest, NextResponse } from 'next/server';
 
-const BACKEND = process.env.BACKEND_URL ?? 'http://localhost:4000';
+const BACKEND = (process.env.BACKEND_URL ?? 'http://localhost:4000').replace(/\/$/, '');
+const HOP_BY_HOP_HEADERS = new Set([
+  'connection',
+  'content-length',
+  'host',
+  'keep-alive',
+  'origin',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+]);
 
 async function handler(
   request: NextRequest,
@@ -15,13 +28,13 @@ async function handler(
   const search = request.nextUrl.search;
   const targetUrl = `${BACKEND}/api/${pathname}${search}`;
 
-  // Forward all headers except host (which would confuse the backend)
+  // This is a server-to-server request. Do not forward Origin, otherwise the
+  // backend can reject the proxy call with a CORS error.
   const headers = new Headers();
   request.headers.forEach((value, key) => {
-    if (key.toLowerCase() !== 'host') headers.set(key, value);
+    if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) headers.set(key, value);
   });
 
-  // Forward body for write methods
   let body: ArrayBuffer | undefined;
   if (!['GET', 'HEAD'].includes(request.method)) {
     body = await request.arrayBuffer();
@@ -32,11 +45,10 @@ async function handler(
       method: request.method,
       headers,
       body,
-      // @ts-expect-error — needed to forward cookies correctly on Node.js fetch
+      // @ts-expect-error Node fetch requires duplex for streaming request bodies.
       duplex: 'half',
     });
 
-    // Forward ALL response headers — critical for Set-Cookie (auth tokens)
     const responseHeaders = new Headers();
     upstream.headers.forEach((value, key) => {
       responseHeaders.append(key, value);
@@ -56,9 +68,9 @@ async function handler(
   }
 }
 
-export const GET     = handler;
-export const POST    = handler;
-export const PUT     = handler;
-export const PATCH   = handler;
-export const DELETE  = handler;
+export const GET = handler;
+export const POST = handler;
+export const PUT = handler;
+export const PATCH = handler;
+export const DELETE = handler;
 export const OPTIONS = handler;
