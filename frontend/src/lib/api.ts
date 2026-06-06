@@ -1,18 +1,15 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '@/types';
 
-// Use relative URL in browser (goes through Next.js proxy → backend)
-// In server-side context, fall back to the explicit URL
-const API_URL =
-  typeof window !== 'undefined'
-    ? '/api/v1'
-    : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+// Direct backend URL — works cross-domain because backend uses SameSite=None; Secure cookies
+// NEXT_PUBLIC_BACKEND_URL is available in both browser and server (Next.js NEXT_PUBLIC_ prefix)
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: `${BACKEND}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
-  withCredentials: true, // Send cookies automatically (same-origin via proxy)
+  withCredentials: true, // Required for cross-domain httpOnly cookies (SameSite=None)
 });
 
 // Response interceptor — handle 401 refresh via cookie
@@ -26,13 +23,12 @@ api.interceptors.response.use(
 
       try {
         // Refresh token is sent automatically via httpOnly cookie
-        const { data } = await axios.post<
-          ApiResponse<{ accessToken: string; refreshToken: string }>
-        >('/api/v1/auth/refresh', {}, { withCredentials: true });
-
-        if (data.success && data.data) {
-          return api(originalRequest);
-        }
+        await axios.post(
+          `${BACKEND}/api/v1/auth/refresh`,
+          {},
+          { withCredentials: true },
+        );
+        return api(originalRequest);
       } catch {
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
