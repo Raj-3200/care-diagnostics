@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { getErrorMessage } from '@/lib/api';
@@ -68,10 +68,23 @@ const DEMO_CREDENTIALS = [
 export default function LoginPage() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
+  const loadUser = useAuthStore((s) => s.loadUser);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace('/dashboard');
+    }
+  }, [isLoading, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

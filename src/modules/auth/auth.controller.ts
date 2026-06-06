@@ -4,6 +4,7 @@ import * as authService from './auth.service.js';
 import { sendSuccess } from '../../shared/utils/apiResponse.js';
 import { AuthenticatedRequest } from '../../shared/types/auth.types.js';
 import { ACCESS_COOKIE_OPTIONS, REFRESH_COOKIE_OPTIONS } from '../../shared/utils/jwt.js';
+import { UnauthorizedError } from '../../shared/errors/AppError.js';
 
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -29,7 +30,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction): 
     // Accept from cookie or body
     const token = req.cookies?.refreshToken || (req.body as { refreshToken?: string }).refreshToken;
     if (!token) {
-      throw new Error('Refresh token required');
+      throw new UnauthorizedError('Refresh token required');
     }
 
     const result = await authService.refreshToken(token);
@@ -70,7 +71,7 @@ export const me = async (
 ): Promise<void> => {
   try {
     if (!req.user) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedError('User not authenticated');
     }
 
     const user = await authService.getProfile(req.user.userId);
