@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+import api, { getErrorMessage } from '@/lib/api';
 import type { ApiResponse, Patient } from '@/types';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable, Column } from '@/components/shared/data-table';
@@ -14,6 +14,7 @@ import { Search, UserPlus, X } from 'lucide-react';
 import { PageTransition } from '@/components/shared/page-transition';
 import { FadeIn } from '@/components/shared/animations';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export default function PatientsPage() {
   const router = useRouter();
@@ -33,15 +34,22 @@ export default function PatientsPage() {
     };
   }, [search]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['patients', page, debouncedSearch],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
-      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (debouncedSearch) params.set('searchTerm', debouncedSearch);
       const { data } = await api.get<ApiResponse<Patient[]>>(`/patients?${params}`);
       return data;
     },
+    refetchOnMount: 'always',
   });
+
+  useEffect(() => {
+    if (isError && error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, [isError, error]);
 
   const columns: Column<Patient>[] = [
     { header: 'MRN', accessorKey: 'mrn', className: 'font-mono text-[13px] text-primary/80' },
@@ -134,8 +142,12 @@ export default function PatientsPage() {
         data={data?.data ?? []}
         isLoading={isLoading}
         onRowClick={(row) => router.push(`/dashboard/patients/${row.id}`)}
-        emptyMessage="No patients found"
-        emptyDescription="Register your first patient to get started with the system."
+        emptyMessage={isError ? 'Could not load patients' : 'No patients found'}
+        emptyDescription={
+          isError
+            ? getErrorMessage(error)
+            : 'Register your first patient to get started with the system.'
+        }
         pagination={{
           page,
           totalPages: data?.meta?.totalPages ?? 1,
