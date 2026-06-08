@@ -6,7 +6,17 @@ import { useAuthStore } from './auth-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4000';
+function normalizeWebSocketUrl() {
+  const explicitUrl = process.env.NEXT_PUBLIC_WS_URL?.trim();
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  const sourceUrl = explicitUrl || apiUrl;
+
+  if (!sourceUrl || sourceUrl.startsWith('/')) return '';
+
+  return sourceUrl.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '');
+}
+
+const WS_URL = normalizeWebSocketUrl();
 
 let socket: Socket | null = null;
 
@@ -79,6 +89,8 @@ export function useWebSocket() {
 
     // Connect with credentials (cookies are sent) — delay slightly to not block initial render
     const timer = setTimeout(() => {
+      if (!WS_URL) return;
+
       const s = io(WS_URL, {
         withCredentials: true,
         transports: ['websocket', 'polling'],
@@ -86,9 +98,7 @@ export function useWebSocket() {
         reconnectionAttempts: 5,
       });
 
-      s.on('connect', () => {
-        console.log('[WS] Connected');
-      });
+      s.on('connect', () => undefined);
 
       s.on('domain-event', handleDomainEvent);
       s.on('notification', handleNotification);
@@ -98,9 +108,7 @@ export function useWebSocket() {
         queryClient.invalidateQueries({ queryKey: [data.queue] });
       });
 
-      s.on('disconnect', (reason) => {
-        console.log('[WS] Disconnected:', reason);
-      });
+      s.on('disconnect', () => undefined);
 
       socketRef.current = s;
       socket = s;
